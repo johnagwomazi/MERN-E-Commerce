@@ -51,6 +51,11 @@ const ProductDetail = () => {
 
   const loadProduct = useAppStore((s) => s.loadProduct);
   const product = useAppStore((s) => s.product);
+  const catalogProduct = useAppStore((s) =>
+    s.products.find((item) => String(item._id) === String(id))
+  );
+  const productLoading = useAppStore((s) => s.productLoading);
+  const productError = useAppStore((s) => s.productError);
   const addToCart = useAppStore((s) => s.addToCart);
   const cartLoadingProductId = useAppStore((s) => s.cartLoadingProductId);
 
@@ -58,26 +63,33 @@ const ProductDetail = () => {
 
   /* stable image list */
   const images = useMemo(() => {
-    if (!product?.image) return [];
-    return [product.image, product.image, product.image];
-  }, [product?.image]);
+    const source = product?._id === id ? product : catalogProduct;
+    if (!source?.image) return [];
+    return [source.image, source.image, source.image];
+  }, [catalogProduct, id, product]);
 
   useEffect(() => {
-    if (id) loadProduct(id);
+    if (id) {
+      loadProduct(id).catch(() => {});
+    }
     setActiveImg(0);
   }, [id, loadProduct]);
 
-  if (!product) {
+  const activeProduct = product?._id === id ? product : catalogProduct;
+
+  if (productLoading || !activeProduct) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <p className="text-sm text-ink/50">Loading product...</p>
+        <p className="text-sm text-ink/50">
+          {productLoading ? 'Loading product...' : productError || 'Loading product...'}
+        </p>
       </div>
     );
   }
 
-  const isLoading = cartLoadingProductId === product._id;
-  const outOfStock = product.inventoryCount <= 0;
-  const currentImage = images[activeImg] || product.image;
+  const isLoading = cartLoadingProductId === activeProduct._id;
+  const outOfStock = activeProduct.inventoryCount <= 0;
+  const currentImage = images[activeImg] || activeProduct.image;
 
   const next = () =>
     setActiveImg((p) => (p + 1) % images.length);
@@ -105,9 +117,9 @@ const ProductDetail = () => {
 
           {/* MAIN IMAGE (FIXED + NO OVERFLOW GLITCH) */}
           <div className="relative overflow-hidden rounded-[2rem] bg-white shadow-sm">
-            <img
+              <img
               src={currentImage}
-              alt={product.name}
+              alt={activeProduct.name}
               className="h-[420px] w-full object-cover lg:h-[80vh]"
             />
 
@@ -172,7 +184,7 @@ const ProductDetail = () => {
           {/* CATEGORY + STOCK */}
           <div className="flex items-center justify-between">
             <span className="rounded-full bg-[#6d4df2] px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white">
-              {product.category}
+              {activeProduct.category}
             </span>
 
             <span
@@ -188,12 +200,12 @@ const ProductDetail = () => {
 
           {/* TITLE */}
           <h1 className="mt-4 text-3xl font-bold text-ink sm:text-[2.2rem]">
-            {product.name}
+            {activeProduct.name}
           </h1>
 
           {/* PRICE */}
           <p className="mt-3 text-2xl font-semibold text-ink">
-            {formatCurrency(product.price)}
+            {formatCurrency(activeProduct.price)}
           </p>
 
           <hr className="my-6 border-ink/10" />
@@ -205,7 +217,7 @@ const ProductDetail = () => {
       Stock
     </p>
     <p className="text-xs sm:text-sm font-semibold">
-      {outOfStock ? 'Unavailable' : `${product.inventoryCount} left`}
+      {outOfStock ? 'Unavailable' : `${activeProduct.inventoryCount} left`}
     </p>
   </div>
 
@@ -226,7 +238,7 @@ const ProductDetail = () => {
 
           {/* CTA */}
           <button
-            onClick={() => addToCart(product._id, 1)}
+            onClick={() => addToCart(activeProduct._id, 1)}
             disabled={isLoading || outOfStock}
             className="mt-6 flex w-full items-center justify-center gap-3 rounded-full bg-[#6d4df2] py-4 text-sm font-semibold text-white disabled:opacity-50"
           >
@@ -241,7 +253,7 @@ const ProductDetail = () => {
           {/* ACCORDIONS (UNCHANGED) */}
           <div className="mt-6">
             <AccordionItem label="Description">
-              {product.description}
+              {activeProduct.description}
             </AccordionItem>
 
             <AccordionItem label="Shipping">

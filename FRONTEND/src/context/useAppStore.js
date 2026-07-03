@@ -1,12 +1,35 @@
 import { create } from 'zustand';
 import api from '@/utils/axiosInstance';
+import { authService } from '@/services/authService';
+import { clearStoredAuthToken, getStoredAuthToken, getStoredRememberMe, getStoredRefreshToken, setStoredAuthToken } from '@/utils/authStorage';
+import { getFriendlyErrorMessage } from '@/utils/errorHandler';
 
-const getErrorMessage = (error) => {
-  return error?.response?.data?.message || error.message || 'Something went wrong';
+const getErrorMessage = (error) => getFriendlyErrorMessage(error);
+
+const initialToken = getStoredAuthToken();
+const initialRememberMe = getStoredRememberMe();
+
+const syncSessionUser = (set, data, rememberMe = initialRememberMe) => {
+  if (data?.accessToken) {
+    setStoredAuthToken(data.accessToken, rememberMe, data.refreshToken || getStoredRefreshToken());
+  }
+
+  if (typeof window !== 'undefined' && data?.accessToken) {
+    window.dispatchEvent(
+      new CustomEvent('auth:token-refreshed', {
+        detail: { token: data.accessToken, rememberMe, refreshToken: data.refreshToken || getStoredRefreshToken() }
+      })
+    );
+  }
+
+  set({
+    token: data?.accessToken || '',
+    user: data?.user || null
+  });
 };
 
 export const useAppStore = create((set, get) => ({
-  token: localStorage.getItem('auth-token') || '',
+  token: initialToken,
   user: null,
   products: [],
   product: null,
@@ -21,40 +44,38 @@ export const useAppStore = create((set, get) => ({
   analytics: null,
   analyticsLoading: false,
   loading: false,
+  productLoading: false,
+  productError: '',
   bootstrapping: false,
   cartLoadingProductId: '',
   checkoutLoading: false,
   adminLoading: false,
   error: '',
+  authNotice: '',
 
   setError: (error) => set({ error }),
   clearError: () => set({ error: '' }),
 
-  setAuth: (token, user) => {
+  setAuth: (token, user, rememberMe = initialRememberMe, refreshToken = '') => {
     if (token) {
-      localStorage.setItem('auth-token', token);
+      setStoredAuthToken(token, rememberMe, refreshToken);
     } else {
-      localStorage.removeItem('auth-token');
+      clearStoredAuthToken();
     }
 
     set({ token, user });
   },
 
   bootstrapAuth: async () => {
-    const token = localStorage.getItem('auth-token');
-
-    if (!token) {
-      return;
-    }
-
     set({ bootstrapping: true });
 
     try {
       const { data } = await api.get('/auth/me');
       set({
-        token,
+        token: getStoredAuthToken(),
         user: data.user,
-        bootstrapping: false
+        bootstrapping: false,
+        authNotice: ''
       });
       await get().loadCart();
       await get().loadOrders();
@@ -62,11 +83,12 @@ export const useAppStore = create((set, get) => ({
         await get().loadAdminOrders();
       }
     } catch (error) {
-      localStorage.removeItem('auth-token');
+      clearStoredAuthToken();
       set({
         token: '',
         user: null,
         bootstrapping: false,
+        authNotice: '',
         cart: { items: [] },
         orders: [],
         adminOrders: { pendingOrders: [], deliveredOrders: [] }
@@ -77,18 +99,15 @@ export const useAppStore = create((set, get) => ({
   register: async (payload) => {
     try {
       set({ loading: true, error: '' });
-      const { data } = await api.post('/auth/register', payload);
-      get().setAuth(data.token, data.user);
-      await get().loadCart();
-      await get().loadOrders();
-      if (data.user?.role === 'admin') {
-        await get().loadAdminOrders();
-      }
-      set({ loading: false });
+      const { data } = await authService.register(payload);
+      set({
+        loading: false,
+        authNotice: data.message || 'Account created. Please verify your email.'
+      });
       return data;
     } catch (error) {
       const message = getErrorMessage(error);
-      set({ loading: false, error: message });
+      set({ loading: false, error: message, authNotice: '' });
       throw error;
     }
   },
@@ -96,24 +115,77 @@ export const useAppStore = create((set, get) => ({
   login: async (payload) => {
     try {
       set({ loading: true, error: '' });
-      const { data } = await api.post('/auth/login', payload);
-      get().setAuth(data.token, data.user);
+      const { data } = await authService.login(payload);
+      get().setAuth(data.accessToken, data.user, payload.rememberMe, data.refreshToken);
       await get().loadCart();
       await get().loadOrders();
       if (data.user?.role === 'admin') {
         await get().loadAdminOrders();
       }
-      set({ loading: false });
+      set({ loading: false, authNotice: data.message || '' });
       return data;
     } catch (error) {
       const message = getErrorMessage(error);
-      set({ loading: false, error: message });
+      set({ loading: false, error: message, authNotice: '' });
       throw error;
     }
   },
 
-  logout: () => {
-    localStorage.removeItem('auth-token');
+  sendVerificationEmail: async (payload) => {
+    try {
+      set({ loading: true, error: '' });
+      const { data } = await authService.sendVerification(payload);
+      set({ loading: false, authNotice: data.message || 'Verification email sent' });
+      return data;
+    } catch (error) {
+      const message = getErrorMessage(error);
+      set({ loading: false, error: message, authNotice: '' });
+      throw error;
+    }
+  },
+
+  verifyEmail: async (token) => {
+    try {
+      set({ loading: true, error: '' });
+      const { data } = await authService.verifyEmail(token);
+      set({ loading: false, authNotice: data.message || 'Email verified' });
+      return data;
+    } catch (error) {
+      const message = getErrorMessage(error);
+      set({ loading: false, error: message, authNotice: '' });
+      throw error;
+    }
+  },
+
+  forgotPassword: async (payload) => {
+    try {
+      set({ loading: true, error: '' });
+      const { data } = await authService.forgotPassword(payload);
+      set({ loading: false, authNotice: data.message || 'Reset email sent' });
+      return data;
+    } catch (error) {
+      const message = getErrorMessage(error);
+      set({ loading: false, error: message, authNotice: '' });
+      throw error;
+    }
+  },
+
+  resetPassword: async (token, payload) => {
+    try {
+      set({ loading: true, error: '' });
+      const { data } = await authService.resetPassword(token, payload);
+      set({ loading: false, authNotice: data.message || 'Password updated' });
+      return data;
+    } catch (error) {
+      const message = getErrorMessage(error);
+      set({ loading: false, error: message, authNotice: '' });
+      throw error;
+    }
+  },
+
+  logout: async () => {
+    void authService.logout().catch(() => {});
+    clearStoredAuthToken();
     set({
       token: '',
       user: null,
@@ -121,7 +193,8 @@ export const useAppStore = create((set, get) => ({
       orders: [],
       adminOrders: { pendingOrders: [], deliveredOrders: [] },
       coupon: null,
-      error: ''
+      error: '',
+      authNotice: ''
     });
   },
 
@@ -137,19 +210,29 @@ export const useAppStore = create((set, get) => ({
 
   loadProduct: async (id) => {
     try {
-      set({ loading: true, error: '' });
+      set({ productLoading: true, productError: '', error: '' });
       const { data } = await api.get(`/products/${id}`);
-      set({ product: data.product, loading: false });
+      set({
+        product: data.product,
+        productLoading: false,
+        productError: ''
+      });
       return data.product;
     } catch (error) {
-      set({ loading: false, error: getErrorMessage(error) });
+      const message = getErrorMessage(error);
+      set({
+        product: null,
+        productLoading: false,
+        productError: message,
+        error: message
+      });
       throw error;
     }
   },
 
   loadCart: async () => {
     try {
-      if (!get().token && !localStorage.getItem('auth-token')) {
+      if (!get().token && !getStoredAuthToken()) {
         return;
       }
 
@@ -448,7 +531,7 @@ export const useAppStore = create((set, get) => ({
 
   loadOrders: async () => {
     try {
-      if (!get().token && !localStorage.getItem('auth-token')) {
+      if (!get().token && !getStoredAuthToken()) {
         return;
       }
 
@@ -459,3 +542,18 @@ export const useAppStore = create((set, get) => ({
     }
   }
 }));
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('auth:token-refreshed', (event) => {
+    const token = event?.detail?.token || '';
+    const rememberMe = Boolean(event?.detail?.rememberMe);
+    useAppStore.setState((state) => ({
+      ...state,
+      token: token || state.token
+    }));
+
+    if (token) {
+      setStoredAuthToken(token, rememberMe, event?.detail?.refreshToken || getStoredRefreshToken());
+    }
+  });
+}

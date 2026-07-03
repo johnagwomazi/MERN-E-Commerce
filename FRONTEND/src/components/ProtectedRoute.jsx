@@ -1,12 +1,13 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAppStore } from '@/context/useAppStore';
+import { getStoredAuthToken } from '@/utils/authStorage';
 
 const ProtectedRoute = ({ children, roles }) => {
   const location = useLocation();
   const token = useAppStore((state) => state.token);
   const user = useAppStore((state) => state.user);
   const bootstrapping = useAppStore((state) => state.bootstrapping);
-  const hasStoredToken = Boolean(token || localStorage.getItem('auth-token'));
+  const hasStoredToken = Boolean(token || getStoredAuthToken());
 
   if (bootstrapping || (hasStoredToken && !user)) {
     return (
@@ -17,7 +18,7 @@ const ProtectedRoute = ({ children, roles }) => {
   }
 
   if (!hasStoredToken) {
-    return <Navigate to="/dashboard" replace state={{ from: location }} />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   if (roles?.length && !roles.includes(user?.role)) {

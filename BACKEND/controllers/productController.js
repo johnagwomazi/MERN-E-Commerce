@@ -34,17 +34,17 @@ export const getProducts = async (req, res, next) => {
 
 export const getProductById = async (req, res, next) => {
   try {
-    const query = Product.findById(req.params.id);
+    const filter = { _id: req.params.id };
+
     if (!req.user || req.user.role !== 'admin') {
-      query.where({
-        $or: [
-          { approvalStatus: 'approved' },
-          { approvalStatus: { $exists: false } },
-          { approvalStatus: null }
-        ]
-      });
+      filter.$or = [
+        { approvalStatus: 'approved' },
+        { approvalStatus: { $exists: false } },
+        { approvalStatus: null }
+      ];
     }
-    const product = await query;
+
+    const product = await Product.findOne(filter);
 
     if (!product) {
       throw new AppError('Product not found', 404);

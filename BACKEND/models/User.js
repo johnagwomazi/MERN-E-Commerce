@@ -19,12 +19,40 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters']
+      minlength: [8, 'Password must be at least 8 characters']
     },
     role: {
       type: String,
       enum: ['customer', 'manager', 'admin'],
       default: 'customer'
+    },
+    emailVerified: {
+      type: Boolean,
+      default: false
+    },
+    emailVerificationTokenHash: {
+      type: String,
+      default: ''
+    },
+    emailVerificationExpiresAt: {
+      type: Date,
+      default: null
+    },
+    passwordResetTokenHash: {
+      type: String,
+      default: ''
+    },
+    passwordResetExpiresAt: {
+      type: Date,
+      default: null
+    },
+    refreshTokenVersion: {
+      type: Number,
+      default: 0
+    },
+    lastLoginAt: {
+      type: Date,
+      default: null
     }
   },
   { timestamps: true }
@@ -43,5 +71,14 @@ userSchema.pre('save', async function (next) {
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
+
+userSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    delete ret.password;
+    delete ret.emailVerificationTokenHash;
+    delete ret.passwordResetTokenHash;
+    return ret;
+  }
+});
 
 export default mongoose.model('User', userSchema);

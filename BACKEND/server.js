@@ -28,11 +28,37 @@ import userRoutes from './routes/userRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import analyticsRoutes from './routes/analytics.route.js';
 
+const parseCookies = (cookieHeader = '') =>
+  cookieHeader.split(';').reduce((acc, pair) => {
+    const [rawKey, ...rawValue] = pair.trim().split('=');
+    if (!rawKey) {
+      return acc;
+    }
+    acc[decodeURIComponent(rawKey)] = decodeURIComponent(rawValue.join('=') || '');
+    return acc;
+  }, {});
+
+const applyDefaultEnv = () => {
+  if (!process.env.JWT_EXPIRES_IN) {
+    process.env.JWT_EXPIRES_IN = '15m';
+  }
+
+  if (!process.env.REFRESH_TOKEN_EXPIRES_IN) {
+    process.env.REFRESH_TOKEN_EXPIRES_IN = '7d';
+  }
+
+  if (!process.env.BACKEND_URL) {
+    const port = process.env.PORT || '5000';
+    process.env.BACKEND_URL = `http://localhost:${port}`;
+  }
+};
+
 const validateEnv = () => {
   const required = [
     'PORT',
     'MONGO_URI',
     'JWT_SECRET',
+    'REFRESH_TOKEN_SECRET',
     'PAYSTACK_SECRET_KEY',
     'FRONTEND_URL'
   ];
@@ -43,19 +69,27 @@ const validateEnv = () => {
   }
 };
 
+applyDefaultEnv();
 validateEnv();
 
 const app = express();
 
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(
   cors({
     origin: process.env.FRONTEND_URL,
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Refresh-Token']
   })
 );
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use((req, res, next) => {
+  req.cookies = parseCookies(req.headers.cookie || '');
+  next();
+});
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 app.get('/api/v1/health', (req, res) => {
