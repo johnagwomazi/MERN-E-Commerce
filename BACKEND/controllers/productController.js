@@ -3,6 +3,15 @@ import Setting from '../models/Setting.js';
 import AuditLog from '../models/AuditLog.js';
 import { AppError } from '../middleware/errorMiddleware.js';
 
+const findProductByAnyId = async (productId) => {
+  const mongooseProduct = await Product.findById(productId);
+  if (mongooseProduct) {
+    return mongooseProduct;
+  }
+
+  return Product.collection.findOne({ _id: productId });
+};
+
 export const getProducts = async (req, res, next) => {
   try {
     const { category, q } = req.query;
@@ -34,20 +43,19 @@ export const getProducts = async (req, res, next) => {
 
 export const getProductById = async (req, res, next) => {
   try {
-    const filter = { _id: req.params.id };
-
-    if (!req.user || req.user.role !== 'admin') {
-      filter.$or = [
-        { approvalStatus: 'approved' },
-        { approvalStatus: { $exists: false } },
-        { approvalStatus: null }
-      ];
-    }
-
-    const product = await Product.findOne(filter);
+    const product = await findProductByAnyId(req.params.id);
 
     if (!product) {
       throw new AppError('Product not found', 404);
+    }
+
+    if (!req.user || req.user.role !== 'admin') {
+      const approvalStatus = product.approvalStatus ?? null;
+      const isApproved = approvalStatus === 'approved' || approvalStatus === null;
+
+      if (!isApproved) {
+        throw new AppError('Product not found', 404);
+      }
     }
 
     res.json({

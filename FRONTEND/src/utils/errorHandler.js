@@ -40,6 +40,20 @@ const isAuthProtectedRequest = (error) =>
   getRequestPath(error).includes('/analytics') ||
   getRequestPath(error).includes('/products');
 
+const getServiceLabel = (path) => {
+  if (path.includes('/auth/login')) return 'sign-in';
+  if (path.includes('/auth/register')) return 'sign-up';
+  if (path.includes('/auth/refresh-token')) return 'session refresh';
+  if (path.includes('/auth')) return 'authentication';
+  if (path.includes('/cart')) return 'cart';
+  if (path.includes('/orders')) return 'orders';
+  if (path.includes('/products')) return 'product catalog';
+  if (path.includes('/users')) return 'user management';
+  if (path.includes('/settings')) return 'settings';
+  if (path.includes('/analytics')) return 'analytics';
+  return 'server';
+};
+
 export const getFriendlyErrorMessage = (error, fallback = 'Something went wrong. Please try again.') => {
   const response = error?.response;
   const status = response?.status;
@@ -56,11 +70,11 @@ export const getFriendlyErrorMessage = (error, fallback = 'Something went wrong.
 
   if (axios.isAxiosError(error)) {
     if (error.code === 'ECONNABORTED' || /timeout/i.test(backendMessage)) {
-      return 'The request timed out. Please try again.';
+      return `The ${getServiceLabel(getRequestPath(error))} request timed out. Please try again.`;
     }
 
     if (!response) {
-      return 'Unable to connect to our servers. Please check your internet connection and try again.';
+      return `Unable to reach the ${getServiceLabel(getRequestPath(error))} service. Please check the backend URL or your connection and try again.`;
     }
   }
 
@@ -89,6 +103,10 @@ export const getFriendlyErrorMessage = (error, fallback = 'Something went wrong.
   }
 
   if (status === 401) {
+    if (getRequestPath(error).includes('/cart')) {
+      return 'Please sign in to add items to your cart.';
+    }
+
     return 'Your session has expired. Please sign in again.';
   }
 
@@ -108,8 +126,12 @@ export const getFriendlyErrorMessage = (error, fallback = 'Something went wrong.
     return 'Too many attempts. Please wait a moment and try again.';
   }
 
+  if (/sold out|out of stock|inventory/i.test(backendMessage)) {
+    return 'This item is out of stock right now.';
+  }
+
   if (status === 500 || matchesTechnicalPattern(backendMessage)) {
-    return 'Something went wrong on our end. Please try again in a few moments.';
+    return `The ${getServiceLabel(getRequestPath(error))} service is having trouble right now. Please try again in a few moments.`;
   }
 
   if (backendMessage && !matchesTechnicalPattern(backendMessage)) {
@@ -134,4 +156,3 @@ export const normalizeClientError = (error, fallback) => {
   normalized.isAxiosError = axios.isAxiosError(error);
   return normalized;
 };
-

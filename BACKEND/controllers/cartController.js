@@ -7,14 +7,13 @@ const getPopulatedCart = async (userId) => {
   return cart || { userId, items: [] };
 };
 
-const ensureProductAvailability = async (productId, quantity) => {
-  const availableProduct = await Product.findOneAndUpdate(
-    { _id: productId, inventoryCount: { $gte: quantity } },
-    { $inc: { inventoryCount: 0 } },
-    { new: true }
-  );
+const findProductByAnyId = async (productId) => {
+  const mongooseProduct = await Product.findById(productId);
+  if (mongooseProduct) {
+    return mongooseProduct;
+  }
 
-  return availableProduct;
+  return Product.collection.findOne({ _id: productId });
 };
 
 export const getCart = async (req, res, next) => {
@@ -42,6 +41,11 @@ export const addToCart = async (req, res, next) => {
       throw new AppError('Quantity must be a whole number greater than zero', 400);
     }
 
+    const product = await findProductByAnyId(productId);
+    if (!product) {
+      throw new AppError('Product not found', 404);
+    }
+
     const cart = await Cart.findOneAndUpdate(
       { userId: req.user._id },
       { $setOnInsert: { userId: req.user._id, items: [] } },
@@ -49,16 +53,6 @@ export const addToCart = async (req, res, next) => {
     );
 
     const itemIndex = cart.items.findIndex((item) => item.productId.toString() === productId);
-    const currentQuantity = itemIndex > -1 ? cart.items[itemIndex].quantity : 0;
-    const desiredQuantity = currentQuantity + quantity;
-
-    const product = await ensureProductAvailability(productId, desiredQuantity);
-    if (!product) {
-      return res.status(400).json({
-        success: false,
-        message: 'Item has sold out'
-      });
-    }
 
     if (itemIndex > -1) {
       cart.items[itemIndex].quantity += quantity;
@@ -88,14 +82,6 @@ export const updateCartItem = async (req, res, next) => {
       throw new AppError('Quantity must be at least 1', 400);
     }
 
-    const product = await ensureProductAvailability(productId, quantity);
-    if (!product) {
-      return res.status(400).json({
-        success: false,
-        message: 'Item has sold out'
-      });
-    }
-
     const cart = await Cart.findOne({ userId: req.user._id });
     if (!cart) {
       throw new AppError('Cart not found', 404);
@@ -104,16 +90,6 @@ export const updateCartItem = async (req, res, next) => {
     const item = cart.items.find((entry) => entry.productId.toString() === productId);
     if (!item) {
       throw new AppError('Cart item not found', 404);
-    }
-
-    if (quantity > item.quantity) {
-      const product = await ensureProductAvailability(productId, quantity);
-      if (!product) {
-        return res.status(400).json({
-          success: false,
-          message: 'Item has sold out'
-        });
-      }
     }
 
     item.quantity = quantity;

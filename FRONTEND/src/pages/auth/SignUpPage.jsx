@@ -13,7 +13,7 @@ const passwordRule = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
 
 const SignUpPage = () => {
   const navigate = useNavigate();
-  const { success } = useToast();
+  const { success, error: showError } = useToast();
   const register = useAppStore((state) => state.register);
   const loading = useAppStore((state) => state.loading);
   const error = useAppStore((state) => state.error);
@@ -48,9 +48,19 @@ const SignUpPage = () => {
 
   const submit = async (event) => {
     event.preventDefault();
-    const data = await register(form);
-    success(data.message || 'Account created. Check your inbox to verify your email.');
-    navigate('/verify-email/pending', { replace: true, state: { email: form.email } });
+    try {
+      const data = await register(form);
+      success(data.message || 'Account created.');
+
+      if (data?.verificationRequired) {
+        navigate('/verify-email/pending', { replace: true, state: { email: form.email } });
+      } else {
+        navigate('/login', { replace: true });
+      }
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.message || 'Unable to create your account right now.';
+      showError(message);
+    }
   };
 
   return (
@@ -183,4 +193,3 @@ const SignUpPage = () => {
 };
 
 export default SignUpPage;
-

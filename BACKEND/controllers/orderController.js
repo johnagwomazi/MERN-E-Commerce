@@ -18,12 +18,44 @@ const calculateDiscount = (subtotal, coupon) => {
   return Math.min(coupon.discountValue, subtotal);
 };
 
+const findProductByAnyId = async (productId) => {
+  const mongooseProduct = await Product.findById(productId);
+  if (mongooseProduct) {
+    return mongooseProduct;
+  }
+
+  return Product.collection.findOne({ _id: productId });
+};
+
+const updateProductInventoryByAnyId = async (productId, quantity, delta) => {
+  const update = { $inc: { inventoryCount: delta * quantity } };
+
+  const mongooseQuery = delta < 0
+    ? { _id: productId, inventoryCount: { $gte: quantity } }
+    : { _id: productId };
+
+  const mongooseResult = await Product.findOneAndUpdate(mongooseQuery, update, { new: true });
+  if (mongooseResult) {
+    return mongooseResult;
+  }
+
+  const rawQuery = delta < 0
+    ? { _id: productId, inventoryCount: { $gte: quantity } }
+    : { _id: productId };
+
+  const { value } = await Product.collection.findOneAndUpdate(rawQuery, update, {
+    returnDocument: 'after'
+  });
+
+  return value || null;
+};
+
 const buildOrderItems = async (cartItems) => {
   const items = [];
 
   for (const entry of cartItems) {
     const productId = entry.productId?._id || entry.productId;
-    const product = await Product.findById(productId);
+    const product = await findProductByAnyId(productId);
 
     if (!product) {
       throw new AppError('A product in your cart no longer exists', 400);
@@ -55,11 +87,7 @@ const getCartForUser = async (userId) => {
 
 const reserveInventory = async (items) => {
   for (const item of items) {
-    const updatedProduct = await Product.findOneAndUpdate(
-      { _id: item.productId, inventoryCount: { $gte: item.quantity } },
-      { $inc: { inventoryCount: -item.quantity } },
-      { new: true }
-    );
+    const updatedProduct = await updateProductInventoryByAnyId(item.productId, item.quantity, -1);
 
     if (!updatedProduct) {
       throw new AppError('One or more items in your cart just sold out. Please modify your cart.', 400);
@@ -69,10 +97,7 @@ const reserveInventory = async (items) => {
 
 const releaseInventory = async (items) => {
   for (const item of items) {
-    await Product.findByIdAndUpdate(
-      item.productId,
-      { $inc: { inventoryCount: item.quantity } }
-    );
+    await updateProductInventoryByAnyId(item.productId, item.quantity, 1);
   }
 };
 

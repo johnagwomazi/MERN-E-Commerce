@@ -2,6 +2,9 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { AppError } from './errorMiddleware.js';
 
+const isEmailVerificationRequired = () =>
+  String(process.env.REQUIRE_EMAIL_VERIFICATION).toLowerCase() === 'true';
+
 const parseCookies = (cookieHeader = '') =>
   cookieHeader.split(';').reduce((acc, pair) => {
     const [rawKey, ...rawValue] = pair.trim().split('=');
@@ -36,7 +39,7 @@ export const protect = async (req, res, next) => {
       return next(new AppError('Not authorized, user not found', 401));
     }
 
-    if (!user.emailVerified) {
+    if (isEmailVerificationRequired() && !user.emailVerified) {
       return next(new AppError('Please verify your email before continuing', 403));
     }
 

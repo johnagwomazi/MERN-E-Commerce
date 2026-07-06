@@ -14,6 +14,7 @@ import {
 
 import { useAppStore } from '@/context/useAppStore';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { useToast } from '@/components/ToastProvider';
 
 /* ---------------- ACCORDION ---------------- */
 const AccordionItem = ({ label, children }) => {
@@ -58,6 +59,7 @@ const ProductDetail = () => {
   const productError = useAppStore((s) => s.productError);
   const addToCart = useAppStore((s) => s.addToCart);
   const cartLoadingProductId = useAppStore((s) => s.cartLoadingProductId);
+  const { success, error: showError } = useToast();
 
   const [activeImg, setActiveImg] = useState(0);
 
@@ -88,7 +90,9 @@ const ProductDetail = () => {
   }
 
   const isLoading = cartLoadingProductId === activeProduct._id;
-  const outOfStock = activeProduct.inventoryCount <= 0;
+  const stockCount = Number(activeProduct.inventoryCount);
+  const inStock = Number.isFinite(stockCount) ? stockCount > 0 : true;
+  const stockLabel = Number.isFinite(stockCount) ? `${stockCount} left` : 'Available';
   const currentImage = images[activeImg] || activeProduct.image;
 
   const next = () =>
@@ -189,12 +193,12 @@ const ProductDetail = () => {
 
             <span
               className={`rounded-full px-3 py-1 text-[11px] font-medium ${
-                outOfStock
-                  ? 'bg-red-50 text-red-600'
-                  : 'bg-emerald-50 text-emerald-700'
+                inStock
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'bg-amber-50 text-amber-700'
               }`}
             >
-              {outOfStock ? 'Out of stock' : 'In stock'}
+              {inStock ? 'In stock' : 'Available'}
             </span>
           </div>
 
@@ -217,7 +221,7 @@ const ProductDetail = () => {
       Stock
     </p>
     <p className="text-xs sm:text-sm font-semibold">
-      {outOfStock ? 'Unavailable' : `${activeProduct.inventoryCount} left`}
+      {stockLabel}
     </p>
   </div>
 
@@ -238,8 +242,16 @@ const ProductDetail = () => {
 
           {/* CTA */}
           <button
-            onClick={() => addToCart(activeProduct._id, 1)}
-            disabled={isLoading || outOfStock}
+            onClick={async () => {
+              try {
+                await addToCart(activeProduct._id, 1);
+                success('Item added to cart');
+              } catch (err) {
+                const message = err?.response?.data?.message || err?.message || 'Unable to add item to cart.';
+                showError(message);
+              }
+            }}
+            disabled={isLoading}
             className="mt-6 flex w-full items-center justify-center gap-3 rounded-full bg-[#6d4df2] py-4 text-sm font-semibold text-white disabled:opacity-50"
           >
             {isLoading ? (
@@ -247,7 +259,7 @@ const ProductDetail = () => {
             ) : (
               <ShoppingCart size={16} />
             )}
-            {isLoading ? 'Adding...' : outOfStock ? 'Sold out' : 'Add to cart'}
+            {isLoading ? 'Adding...' : 'Add to cart'}
           </button>
 
           {/* ACCORDIONS (UNCHANGED) */}

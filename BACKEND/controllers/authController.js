@@ -11,6 +11,8 @@ import {
 import { emailService } from '../services/emailService.js';
 
 const authFields = 'name email role emailVerified createdAt updatedAt';
+const isEmailVerificationRequired = () =>
+  String(process.env.REQUIRE_EMAIL_VERIFICATION).toLowerCase() === 'true';
 
 const toUserPayload = (user) => ({
   id: String(user._id),
@@ -123,7 +125,7 @@ export const register = async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: 'Account created. Please verify your email before signing in.',
-      verificationRequired: true,
+      verificationRequired: isEmailVerificationRequired(),
       user: toUserPayload(user)
     });
   } catch (error) {
@@ -143,7 +145,7 @@ export const login = async (req, res, next) => {
       throw new AppError('Invalid credentials', 401);
     }
 
-    if (!user.emailVerified) {
+    if (isEmailVerificationRequired() && !user.emailVerified) {
       const token = await setVerificationToken(user);
       await maybeSendVerificationEmail(user, token);
       throw new AppError('Please verify your email before signing in', 403);
@@ -157,6 +159,7 @@ export const login = async (req, res, next) => {
     res.json({
       success: true,
       message: 'Signed in successfully',
+      verificationRequired: isEmailVerificationRequired() && !user.emailVerified,
       ...payload
     });
   } catch (error) {
@@ -210,7 +213,7 @@ export const refreshToken = async (req, res, next) => {
       throw new AppError('Refresh token expired', 401);
     }
 
-    if (!user.emailVerified) {
+    if (isEmailVerificationRequired() && !user.emailVerified) {
       throw new AppError('Please verify your email before signing in', 403);
     }
 

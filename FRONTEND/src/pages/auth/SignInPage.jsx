@@ -11,7 +11,7 @@ import { useAppStore } from '@/context/useAppStore';
 const SignInPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { success } = useToast();
+  const { success, error: showError } = useToast();
   const login = useAppStore((state) => state.login);
   const loading = useAppStore((state) => state.loading);
   const error = useAppStore((state) => state.error);
@@ -26,9 +26,21 @@ const SignInPage = () => {
 
   const submit = async (event) => {
     event.preventDefault();
-    await login(form);
-    success('Welcome back. You are signed in.');
-    navigate(redirectTo, { replace: true });
+    try {
+      await login(form);
+      success('Welcome back. You are signed in.');
+      navigate(redirectTo, { replace: true });
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.message || 'Unable to sign in right now.';
+      showError(message);
+
+      if (/verify your email/i.test(message)) {
+        navigate('/verify-email/pending', {
+          replace: true,
+          state: { email: form.email }
+        });
+      }
+    }
   };
 
   return (

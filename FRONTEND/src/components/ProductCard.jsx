@@ -3,20 +3,27 @@ import { Link } from 'react-router-dom';
 import { ShoppingCart, Star, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { useAppStore } from '@/context/useAppStore';
+import { useToast } from '@/components/ToastProvider';
 
 const ProductCard = ({ product }) => {
   const addToCart = useAppStore((state) => state.addToCart);
   const cartLoadingProductId = useAppStore((state) => state.cartLoadingProductId);
+  const { success, error: showError } = useToast();
   const isAdding = cartLoadingProductId === product._id;
-  const isOutOfStock = product.inventoryCount === 0;
 
   const [imageLoaded, setImageLoaded] = useState(false);
 
   const handleAdd = useCallback(async (e) => {
     e.preventDefault(); // Prevents bubbling if nested inside interactive zones
-    if (isOutOfStock || isAdding) return;
-    await addToCart(product._id, 1);
-  }, [addToCart, product._id, isOutOfStock, isAdding]);
+    if (isAdding) return;
+    try {
+      await addToCart(product._id, 1);
+      success('Item added to cart');
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.message || 'Unable to add item to cart.';
+      showError(message);
+    }
+  }, [addToCart, product._id, isAdding, showError, success]);
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_20px_40px_rgba(9,17,31,0.08)]">
@@ -93,8 +100,8 @@ const ProductCard = ({ product }) => {
           <button
             type="button"
             onClick={handleAdd}
-            disabled={isAdding || isOutOfStock}
-            aria-label={isOutOfStock ? `${product.name} is Sold Out` : `Add ${product.name} to your active cart`}
+            disabled={isAdding}
+            aria-label={`Add ${product.name} to your active cart`}
             className="relative z-10 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#6d4df2] px-4 text-xs font-bold text-white transition-all duration-200 hover:bg-[#5b3de0] active:scale-[0.98] disabled:pointer-events-none disabled:bg-slate-100 disabled:text-slate-400 shadow-sm shadow-[#6d4df2]/10"
           >
             {isAdding ? (
@@ -103,7 +110,7 @@ const ProductCard = ({ product }) => {
               <ShoppingCart size={15} strokeWidth={2.5} />
             )}
             <span>
-              {isAdding ? 'Adding...' : isOutOfStock ? 'Sold Out' : 'Add to Cart'}
+              {isAdding ? 'Adding...' : 'Add to Cart'}
             </span>
           </button>
         </div>
