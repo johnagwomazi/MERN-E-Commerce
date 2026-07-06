@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { User, LogOut, ShieldCheck, Search, Menu, X, ShoppingCart, ChevronRight } from 'lucide-react';
+import { User, LogOut, ShieldCheck, Search, Menu, X, ShoppingCart, ChevronRight, ChevronDown } from 'lucide-react';
 import { useAppStore } from '@/context/useAppStore';
 
 const Navbar = () => {
@@ -8,18 +8,25 @@ const Navbar = () => {
   const user = useAppStore((state) => state.user);
   const cart = useAppStore((state) => state.cart);
   const adminOrders = useAppStore((state) => state.adminOrders);
+  const products = useAppStore((state) => state.products);
   const logout = useAppStore((state) => state.logout);
   const [search, setSearch] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(false);
 
   const cartCount = (cart?.items || []).reduce((sum, item) => sum + item.quantity, 0);
   const pendingOrderCount = adminOrders?.pendingOrders?.length || 0;
+  const mobileCategories = useMemo(() => {
+    const uniqueCategories = [...new Set((products || []).map((product) => product.category).filter(Boolean))];
+    return ['All', ...uniqueCategories].slice(0, 10);
+  }, [products]);
 
   const handleLogout = () => {
     logout();
     navigate('/');
     setMobileMenuOpen(false);
+    setMobileCategoriesOpen(false);
   };
 
   const handleSearch = () => {
@@ -28,6 +35,15 @@ const Navbar = () => {
     navigate(`/?q=${encodeURIComponent(query)}`);
     setMobileSearchOpen(false);
     setMobileMenuOpen(false);
+    setMobileCategoriesOpen(false);
+  };
+
+  const handleCategorySelect = (category) => {
+    const query = category === 'All' ? '/' : `/?category=${encodeURIComponent(category)}`;
+    navigate(query);
+    setMobileMenuOpen(false);
+    setMobileSearchOpen(false);
+    setMobileCategoriesOpen(false);
   };
 
   return (
@@ -192,7 +208,7 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* MOBILE SEARCH PANEL */}
+      {/* MOBILE SEARCH PANEL
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:hidden">
         <div
           className={`overflow-hidden transition-all duration-300 ease-out ${
@@ -220,7 +236,7 @@ const Navbar = () => {
             </button>
           </div>
         </div>
-      </div>
+      </div> */}
 
            {/* MOBILE CONTROLS & PANEL ROW CONTAINER */}
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:hidden">
@@ -261,6 +277,45 @@ const Navbar = () => {
           }`}
         >
           <div className="flex flex-col gap-1.5 rounded-2xl border border-ink/5 bg-paper/50 p-2 text-sm font-medium text-ink/80">
+           {/* MOBILE CATEGORIES */}
+          <div className="mb-2 overflow-hidden rounded-2xl border border-ink/10 bg-white">
+            <button
+              type="button"
+              onClick={() => setMobileCategoriesOpen((current) => !current)}
+              className="flex w-full items-center justify-between px-4 py-3"
+            >
+              <span className="font-semibold text-ink">
+                Browse Categories
+              </span>
+
+              <ChevronDown
+                size={18}
+                className={`transition-transform duration-300 ${
+                  mobileCategoriesOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            <div
+              className={`overflow-hidden transition-all duration-300 ${
+                mobileCategoriesOpen
+                  ? 'max-h-[400px] opacity-100'
+                  : 'max-h-0 opacity-0'
+              }`}
+            >
+              <div className="grid grid-cols-2 gap-2 p-3">
+                {mobileCategories.map((item) => (
+                  <button
+                    key={item}
+                    onClick={() => handleCategorySelect(item)}
+                    className="rounded-xl bg-slate-50 px-3 py-3 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
             {user ? (
               <>
                 <Link 
@@ -308,6 +363,40 @@ const Navbar = () => {
                   </span>
                   <span>Logout</span>
                 </button>
+
+                <div className="mt-1 overflow-hidden rounded-2xl border border-ink/5 bg-white">
+                  <button
+                    type="button"
+                    onClick={() => setMobileCategoriesOpen((current) => !current)}
+                    className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-ink transition-colors hover:bg-paper/70"
+                    aria-expanded={mobileCategoriesOpen}
+                  >
+                    <span>Categories</span>
+                    <ChevronDown
+                      size={16}
+                      className={`transition-transform duration-200 ${mobileCategoriesOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  <div
+                    className={`grid overflow-hidden transition-all duration-300 ease-out ${
+                      mobileCategoriesOpen ? 'max-h-72 opacity-100' : 'max-h-0 opacity-0'
+                    }`}
+                  >
+                    <div className="grid grid-cols-2 gap-2 p-3">
+                      {mobileCategories.map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => handleCategorySelect(item)}
+                          className="rounded-xl border border-ink/10 bg-paper px-3 py-2.5 text-left text-xs font-semibold text-ink transition-colors hover:bg-white"
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </>
             ) : (
               <div className="grid grid-cols-2 gap-2 p-1">

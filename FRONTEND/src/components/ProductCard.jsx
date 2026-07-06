@@ -45,15 +45,15 @@ const ProductCard = ({ product }) => {
           }`}
         />
 
-        {/* Floating Badges */}
+        {/* Floating Badges & Action Buttons */}
         <div className="absolute inset-x-3 top-3 flex items-center justify-between gap-2 pointer-events-none select-none z-10">
-          <span className="rounded-md bg-white/90 backdrop-blur-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-700 shadow-sm border border-slate-100">
+          <span className="rounded-md bg-white/95 backdrop-blur-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-600 shadow-sm border border-slate-100/50">
             {product.category}
           </span>
           {product.featured && (
-            <span className="rounded-md bg-[#6d4df2] px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm">
-              Featured
-            </span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#6d4df2] text-white shadow-md shadow-[#6d4df2]/20">
+              <Star size={13} fill="currentColor" strokeWidth={0} />
+            </div>
           )}
         </div>
 

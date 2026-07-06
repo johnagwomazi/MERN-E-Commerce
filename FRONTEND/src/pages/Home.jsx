@@ -17,10 +17,15 @@ const Home = () => {
   const [category, setCategory] = useState('All');
   const [featuredIndex, setFeaturedIndex] = useState(0);
   const search = searchParams.get('q') || '';
+  const categoryParam = searchParams.get('category') || 'All';
 
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
+
+  useEffect(() => {
+    setCategory(categoryParam);
+  }, [categoryParam]);
 
   const categories = useMemo(
     () => ['All', ...new Set(products.map((product) => product.category))],
@@ -184,22 +189,25 @@ const Home = () => {
           </div>
         </div>
 
-        {/* MOBILE CATEGORIES SCROLLBAR */}
-        <div className="block lg:hidden">
-          <div className="w-[100vw] flex gap-1 overflow-x-none pb-1 scrollbar-none snap-x -mx-4 px-4 sm:mx-0 sm:px-0">
-            {categories.map((item) => (
-              <button
-                key={item}
-                onClick={() => setCategory(item)}
-                className={`shrink-0 snap-items rounded-full px-4 py-2 text-xs font-semibold tracking-wide transition-all ${
-                  category === item ? 'bg-[#6d4df2] text-white' : 'bg-white border border-white/70 text-ink'
-                }`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        </div>
+{/* MOBILE CATEGORIES SCROLLBAR */}
+{/* <div className="block lg:hidden w-full">
+  <div className="flex gap-2 overflow-x-auto px-4 py-1 scrollbar-none snap-x snap-mandatory overscroll-x-contain">
+    {categories.map((item) => (
+      <button
+        key={item}
+        onClick={() => setCategory(item)}
+        className={`shrink-0 snap-start rounded-full px-4 py-2.5 text-xs font-semibold tracking-wide transition-all active:scale-[0.96] ${
+          category === item
+            ? 'bg-[#6d4df2] text-white shadow-sm'
+            : 'border border-slate-100 bg-slate-50 text-slate-600'
+        }`}
+      >
+        {item}
+      </button>
+    ))}
+  </div>
+</div> */}
+
 
 
                {/* CORE PRODUCT CATALOG */}
