@@ -2,11 +2,6 @@ import Cart from '../models/Cart.js';
 import Product from '../models/Product.js';
 import { AppError } from '../middleware/errorMiddleware.js';
 
-const getPopulatedCart = async (userId) => {
-  const cart = await Cart.findOne({ userId }).populate('items.productId');
-  return cart || { userId, items: [] };
-};
-
 const findProductByAnyId = async (productId) => {
   const mongooseProduct = await Product.findById(productId);
   if (mongooseProduct) {
@@ -16,13 +11,59 @@ const findProductByAnyId = async (productId) => {
   return Product.collection.findOne({ _id: productId });
 };
 
+const toProductSnapshot = (product) => {
+  if (!product) {
+    return null;
+  }
+
+  const plainProduct = typeof product.toObject === 'function' ? product.toObject() : product;
+
+  return {
+    _id: plainProduct._id,
+    name: plainProduct.name,
+    description: plainProduct.description,
+    price: plainProduct.price,
+    image: plainProduct.image,
+    category: plainProduct.category,
+    inventoryCount: plainProduct.inventoryCount
+  };
+};
+
+const enrichCart = async (cart) => {
+  if (!cart) {
+    return { items: [] };
+  }
+
+  const plainCart = typeof cart.toObject === 'function' ? cart.toObject() : cart;
+  const items = await Promise.all(
+    (plainCart.items || []).map(async (item) => {
+      const rawProductId = item.productId?._id || item.productId;
+      const product = await findProductByAnyId(rawProductId);
+      const productSnapshot = toProductSnapshot(product) || item.productSnapshot || null;
+
+      return {
+        ...item,
+        productId: product || item.productId,
+        productSnapshot,
+        quantity: item.quantity
+      };
+    })
+  );
+
+  return {
+    ...plainCart,
+    items
+  };
+};
+
 export const getCart = async (req, res, next) => {
   try {
-    const cart = await getPopulatedCart(req.user._id);
+    const cart = await Cart.findOne({ userId: req.user._id });
+    const enrichedCart = await enrichCart(cart || { userId: req.user._id, items: [] });
 
     res.json({
       success: true,
-      cart
+      cart: enrichedCart
     });
   } catch (error) {
     next(error);
@@ -52,16 +93,22 @@ export const addToCart = async (req, res, next) => {
       { upsert: true, new: true }
     );
 
-    const itemIndex = cart.items.findIndex((item) => item.productId.toString() === productId);
+    const productKey = String(productId);
+    const itemIndex = cart.items.findIndex((item) => String(item.productId) === productKey);
 
     if (itemIndex > -1) {
       cart.items[itemIndex].quantity += quantity;
+      cart.items[itemIndex].productSnapshot = toProductSnapshot(product);
     } else {
-      cart.items.push({ productId, quantity });
+      cart.items.push({
+        productId,
+        quantity,
+        productSnapshot: toProductSnapshot(product)
+      });
     }
 
     await cart.save();
-    const populatedCart = await Cart.findById(cart._id).populate('items.productId');
+    const populatedCart = await enrichCart(await Cart.findById(cart._id));
 
     res.json({
       success: true,
@@ -87,7 +134,7 @@ export const updateCartItem = async (req, res, next) => {
       throw new AppError('Cart not found', 404);
     }
 
-    const item = cart.items.find((entry) => entry.productId.toString() === productId);
+    const item = cart.items.find((entry) => String(entry.productId) === String(productId));
     if (!item) {
       throw new AppError('Cart item not found', 404);
     }
@@ -95,7 +142,7 @@ export const updateCartItem = async (req, res, next) => {
     item.quantity = quantity;
     await cart.save();
 
-    const populatedCart = await Cart.findById(cart._id).populate('items.productId');
+    const populatedCart = await enrichCart(await Cart.findById(cart._id));
 
     res.json({
       success: true,
@@ -115,10 +162,10 @@ export const removeCartItem = async (req, res, next) => {
       throw new AppError('Cart not found', 404);
     }
 
-    cart.items = cart.items.filter((item) => item.productId.toString() !== productId);
+    cart.items = cart.items.filter((item) => String(item.productId) !== String(productId));
     await cart.save();
 
-    const populatedCart = await Cart.findById(cart._id).populate('items.productId');
+    const populatedCart = await enrichCart(await Cart.findById(cart._id));
 
     res.json({
       success: true,

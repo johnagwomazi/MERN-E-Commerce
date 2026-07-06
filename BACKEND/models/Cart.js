@@ -1,11 +1,45 @@
 import mongoose from 'mongoose';
 
+const productSnapshotSchema = new mongoose.Schema(
+  {
+    _id: {
+      type: mongoose.Schema.Types.Mixed
+    },
+    name: {
+      type: String,
+      trim: true
+    },
+    description: {
+      type: String,
+      trim: true
+    },
+    price: {
+      type: Number
+    },
+    image: {
+      type: String
+    },
+    category: {
+      type: String,
+      trim: true
+    },
+    inventoryCount: {
+      type: Number
+    }
+  },
+  { _id: false }
+);
+
 const cartItemSchema = new mongoose.Schema(
   {
     productId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Product',
       required: true
+    },
+    productSnapshot: {
+      type: productSnapshotSchema,
+      default: null
     },
     quantity: {
       type: Number,
@@ -30,4 +64,3 @@ const cartSchema = new mongoose.Schema(
 );
 
 export default mongoose.model('Cart', cartSchema);
-

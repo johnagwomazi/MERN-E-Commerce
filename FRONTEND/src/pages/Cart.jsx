@@ -10,29 +10,37 @@ const Cart = () => {
   const removeCartItem = useAppStore((state) => state.removeCartItem);
   const clearCart = useAppStore((state) => state.clearCart);
   const items = cart?.items || [];
-  const subtotal = items.reduce((sum, item) => sum + (item.productId?.price || 0) * item.quantity, 0);
+  const getProduct = (item) =>
+    (item.productId && typeof item.productId === 'object' ? item.productId : item.productSnapshot) || null;
+  const subtotal = items.reduce((sum, item) => sum + (getProduct(item)?.price || 0) * item.quantity, 0);
 
   return (
     <div className="mx-auto grid max-w-[1400px] gap-6 px-4 py-8 lg:grid-cols-[1.3fr_0.7fr]">
       <section className="space-y-4">
         <h1 className="text-3xl font-black">Your cart</h1>
-        {items.map((item) => (
-          <div key={item.productId?._id} className="flex gap-4 rounded-[1.5rem] border border-white/70 bg-white p-4">
-            <img src={item.productId?.image} alt={item.productId?.name} className="h-28 w-28 rounded-2xl object-cover" />
+        {items.map((item, index) => {
+          const product = getProduct(item);
+          const productId = product?._id || item.productId;
+          const itemId = productId || `cart-item-${index}`;
+
+          return (
+          <div key={itemId} className="flex gap-4 rounded-[1.5rem] border border-white/70 bg-white p-4">
+            <img src={product?.image} alt={product?.name} className="h-28 w-28 rounded-2xl object-cover" />
             <div className="flex flex-1 flex-col justify-between">
               <div>
-                <p className="font-semibold">{item.productId?.name}</p>
-                <p className="text-sm text-ink/60">{formatCurrency(item.productId?.price || 0)}</p>
+                <p className="font-semibold">{product?.name}</p>
+                <p className="text-sm text-ink/60">{formatCurrency(product?.price || 0)}</p>
               </div>
               <div className="flex items-center gap-3">
-                <button onClick={() => updateCartItem(item.productId._id, Math.max(1, item.quantity - 1))} className="rounded-full bg-paper p-2"><Minus size={16} /></button>
+                <button onClick={() => updateCartItem(productId, Math.max(1, item.quantity - 1))} className="rounded-full bg-paper p-2"><Minus size={16} /></button>
                 <span>{item.quantity}</span>
-                <button onClick={() => updateCartItem(item.productId._id, item.quantity + 1)} className="rounded-full bg-paper p-2"><Plus size={16} /></button>
-                <button onClick={() => removeCartItem(item.productId._id)} className="ml-auto rounded-full bg-red-50 p-2 text-red-600"><Trash2 size={16} /></button>
+                <button onClick={() => updateCartItem(productId, item.quantity + 1)} className="rounded-full bg-paper p-2"><Plus size={16} /></button>
+                <button onClick={() => removeCartItem(productId)} className="ml-auto rounded-full bg-red-50 p-2 text-red-600"><Trash2 size={16} /></button>
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
         {!items.length ? <div className="rounded-[1.5rem] border border-white/70 bg-white p-6">Your cart is empty.</div> : null}
         {items.length ? (
           <button
