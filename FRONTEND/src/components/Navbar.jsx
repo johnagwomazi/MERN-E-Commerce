@@ -31,8 +31,8 @@ const Navbar = () => {
   };
 
   return (
-<header className="sticky top-0 z-50 border-b border-white/70 bg-white/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+<header className="w-[100vw] sticky top-0 z-50 border-b border-white/70 bg-white/80 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-[100vw] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         {/* LOGO */}
         <Link to="/" className="flex shrink-0 items-center gap-2 sm:gap-3 text-ink group">
           <div className="flex h-9 w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11 items-center justify-center rounded-xl bg-[#6d4df2] text-xs sm:text-sm font-bold text-white shadow-[0_10px_25px_rgba(109,77,242,0.3)] transition-transform group-hover:scale-105">

@@ -55,7 +55,7 @@ const Home = () => {
   const currentFeatured = featured[featuredIndex];
 
   return (
-    <div className="mx-auto grid max-w-[1720px] gap-6 px-4 py-4 sm:py-6 lg:grid-cols-[220px_minmax(0,1.25fr)_240px] lg:px-6">
+    <div className="mx-auto grid max-w-full gap-6 px-4 py-4 sm:py-6 lg:grid-cols-[220px_minmax(0,1.25fr)_240px] lg:px-6">
       
       {/* DESKTOP SIDEBAR CATEGORIES */}
       <aside className="hidden rounded-[1.75rem] border border-white/70 bg-white p-4 lg:block">
@@ -186,7 +186,7 @@ const Home = () => {
 
         {/* MOBILE CATEGORIES SCROLLBAR */}
         <div className="block lg:hidden">
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none snap-x -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="w-[100vw] flex gap-1 overflow-x-none pb-1 scrollbar-none snap-x -mx-4 px-4 sm:mx-0 sm:px-0">
             {categories.map((item) => (
               <button
                 key={item}
