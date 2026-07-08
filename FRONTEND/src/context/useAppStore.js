@@ -48,6 +48,7 @@ export const useAppStore = create((set, get) => ({
   productError: '',
   bootstrapping: false,
   cartLoadingProductId: '',
+  cartLoading: false,
   checkoutLoading: false,
   adminLoading: false,
   error: '',
@@ -90,6 +91,7 @@ export const useAppStore = create((set, get) => ({
         bootstrapping: false,
         authNotice: '',
         cart: { items: [] },
+        cartLoading: false,
         orders: [],
         adminOrders: { pendingOrders: [], deliveredOrders: [] }
       });
@@ -190,6 +192,7 @@ export const useAppStore = create((set, get) => ({
       token: '',
       user: null,
       cart: { items: [] },
+      cartLoading: false,
       orders: [],
       adminOrders: { pendingOrders: [], deliveredOrders: [] },
       coupon: null,
@@ -233,13 +236,17 @@ export const useAppStore = create((set, get) => ({
   loadCart: async () => {
     try {
       if (!get().token && !getStoredAuthToken()) {
-        return;
+        return { items: [] };
       }
 
+      set({ cartLoading: true });
       const { data } = await api.get('/cart');
-      set({ cart: data.cart || { items: [] } });
+      const cart = data.cart || { items: [] };
+      set({ cart, cartLoading: false });
+      return cart;
     } catch (error) {
-      set({ error: getErrorMessage(error) });
+      set({ cartLoading: false, error: getErrorMessage(error) });
+      return { items: [] };
     }
   },
 
@@ -505,10 +512,13 @@ export const useAppStore = create((set, get) => ({
   initializeOrder: async (payload) => {
     try {
       set({ checkoutLoading: true, error: '' });
+      console.log('initializeOrder request payload:', payload);
       const { data } = await api.post('/orders/initialize', payload);
+      console.log('initializeOrder response:', data);
       set({ checkoutLoading: false });
       return data;
     } catch (error) {
+      console.error('initializeOrder failed:', error?.response?.data || error);
       set({ checkoutLoading: false, error: getErrorMessage(error) });
       throw error;
     }

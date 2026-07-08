@@ -1,37 +1,53 @@
 import axios from 'axios';
 
-/**
- * Communicates directly with the Paystack transaction authorization pipeline
- * @param {string} reference - The unique tracking reference key string sent from the client UI
- */
-export const verifyPaystackTransaction = async (reference) => {
-  try {
-    // 1. Enforce safety validation checks inside the core networking layer
-    const secretKey = process.env.PAYSTACK_SECRET_KEY;
-    
-    if (!secretKey) {
-      throw new Error("Paystack network initialization failed: PAYSTACK_SECRET_KEY is undefined inside process.env");
-    }
+const PAYSTACK_API_BASE_URL = 'https://api.paystack.co';
 
-    // 2. Direct server-to-server validation call using exact Paystack schema prerequisites
-    const response = await axios.get(
-      `https://paystack.co{encodeURIComponent(reference)}`,
-      {
-        headers: {
-          // The single space after 'Bearer' is strict. Do not remove it.
-          Authorization: `Bearer ${secretKey.trim()}`,
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
-      }
+const getSecretKey = () => {
+  const secretKey = process.env.PAYSTACK_SECRET_KEY?.trim();
+
+  if (!secretKey) {
+    throw new Error('PAYSTACK_SECRET_KEY is undefined inside process.env');
+  }
+
+  return secretKey;
+};
+
+const getAuthHeaders = () => ({
+  Authorization: `Bearer ${getSecretKey()}`,
+  'Content-Type': 'application/json',
+  'Cache-Control': 'no-cache'
+});
+
+export const initializePaystackTransaction = async (payload) => {
+  try {
+    console.log('Paystack request:', payload);
+    const response = await axios.post(
+      `${PAYSTACK_API_BASE_URL}/transaction/initialize`,
+      payload,
+      { headers: getAuthHeaders() }
     );
 
-    // 3. Return the clean payload data packet block straight back to your controller route
+    console.log('Paystack response:', response.data);
     return response.data;
   } catch (networkError) {
-    // Gracefully catch and structure Paystack's raw error messages for your central express middleware
     const paystackErrorMessage = networkError.response?.data?.message || networkError.message;
-    console.error("Paystack External Network Subsystem Error:", paystackErrorMessage);
-    throw new Error(`Paystack Verification Gateway Reject: ${paystackErrorMessage}`);
+    console.error('Paystack error:', networkError.response?.data || networkError);
+    console.error('Paystack initialization error:', paystackErrorMessage);
+    throw new Error(`Paystack initialization failed: ${paystackErrorMessage}`);
+  }
+};
+
+export const verifyPaystackTransaction = async (reference) => {
+  try {
+    const response = await axios.get(
+      `${PAYSTACK_API_BASE_URL}/transaction/verify/${encodeURIComponent(reference)}`,
+      { headers: getAuthHeaders() }
+    );
+
+    return response.data;
+  } catch (networkError) {
+    const paystackErrorMessage = networkError.response?.data?.message || networkError.message;
+    console.error('Paystack verification error:', paystackErrorMessage);
+    throw new Error(`Paystack verification failed: ${paystackErrorMessage}`);
   }
 };

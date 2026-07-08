@@ -80,6 +80,7 @@ export const errorHandler = (err, req, res, next) => {
   let statusCode = res.statusCode !== 200 ? res.statusCode : err.statusCode || 500;
   let message = getPublicErrorMessage(err);
   let code = err.code || 'SERVER_ERROR';
+  const isDevelopment = process.env.NODE_ENV !== 'production';
 
   console.error('[api-error]', {
     statusCode,
@@ -105,6 +106,10 @@ export const errorHandler = (err, req, res, next) => {
     statusCode = 400;
     message = 'An item with these details already exists.';
     code = 'DUPLICATE_KEY';
+  }
+
+  if (isDevelopment && err?.isOperational && err?.message) {
+    message = err.message;
   }
 
   const payload = {

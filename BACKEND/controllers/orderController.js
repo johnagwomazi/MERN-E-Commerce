@@ -4,7 +4,7 @@ import DeliveredOrder from '../models/DeliveredOrder.js';
 import Product from '../models/Product.js';
 import Coupon from '../models/Coupon.js';
 import { AppError } from '../middleware/errorMiddleware.js';
-import { verifyPaystackTransaction } from '../config/paystack.js';
+import { initializePaystackTransaction, verifyPaystackTransaction } from '../config/paystack.js';
 
 const calculateDiscount = (subtotal, coupon) => {
   if (!coupon) {
@@ -27,11 +27,42 @@ const findProductByAnyId = async (productId) => {
   return Product.collection.findOne({ _id: productId });
 };
 
-const updateProductInventoryByAnyId = async (productId, quantity, delta) => {
-  const update = { $inc: { inventoryCount: delta * quantity } };
+const getCartItemProductId = (item) => item?.productId?._id || item?.productId || item?.productSnapshot?._id || item?.productSnapshot?.id || null;
 
+const getInventoryField = (product) => {
+  if (Number.isFinite(product?.inventoryCount)) {
+    return 'inventoryCount';
+  }
+
+  if (Number.isFinite(product?.countInStock)) {
+    return 'countInStock';
+  }
+
+  return 'inventoryCount';
+};
+
+const getInventoryValue = (product) => {
+  if (Number.isFinite(product?.inventoryCount)) {
+    return Number(product.inventoryCount);
+  }
+
+  if (Number.isFinite(product?.countInStock)) {
+    return Number(product.countInStock);
+  }
+
+  return 0;
+};
+
+const updateProductInventoryByAnyId = async (productId, quantity, delta, productHint = null) => {
+  const product = productHint || await findProductByAnyId(productId);
+  if (!product) {
+    return null;
+  }
+
+  const inventoryField = getInventoryField(product);
+  const update = { $inc: { [inventoryField]: delta * quantity } };
   const mongooseQuery = delta < 0
-    ? { _id: productId, inventoryCount: { $gte: quantity } }
+    ? { _id: productId, [inventoryField]: { $gte: quantity } }
     : { _id: productId };
 
   const mongooseResult = await Product.findOneAndUpdate(mongooseQuery, update, { new: true });
@@ -40,7 +71,7 @@ const updateProductInventoryByAnyId = async (productId, quantity, delta) => {
   }
 
   const rawQuery = delta < 0
-    ? { _id: productId, inventoryCount: { $gte: quantity } }
+    ? { _id: productId, [inventoryField]: { $gte: quantity } }
     : { _id: productId };
 
   const { value } = await Product.collection.findOneAndUpdate(rawQuery, update, {
@@ -50,29 +81,67 @@ const updateProductInventoryByAnyId = async (productId, quantity, delta) => {
   return value || null;
 };
 
-const buildOrderItems = async (cartItems) => {
-  const items = [];
+const syncCartItems = async (cart) => {
+  const cartItems = cart?.items || [];
+  console.log('Incoming cart:', cartItems);
 
-  for (const entry of cartItems) {
-    const productId = entry.productId?._id || entry.productId;
+  const validItems = [];
+  const orphanedItems = [];
+  const outOfStockItems = [];
+
+  for (const item of cartItems) {
+    const productId = getCartItemProductId(item);
+    console.log('Checking product:', productId);
+    console.log('Cart item:', item);
+    console.log('Requested quantity:', item?.quantity);
+
+    if (!productId) {
+      orphanedItems.push({ item, reason: 'missing_product_id' });
+      console.log('Found product:', null);
+      continue;
+    }
+
     const product = await findProductByAnyId(productId);
+    console.log('Found product:', product);
+    console.log('Stock field value:', product?.stock);
+    console.log('Quantity field value:', product?.quantity);
+    console.log('Inventory field value:', product?.inventory);
+    console.log('countInStock field value:', product?.countInStock);
 
     if (!product) {
-      throw new AppError('A product in your cart no longer exists', 400);
+      orphanedItems.push({ item, productId, reason: 'missing_database_record' });
+      continue;
     }
 
-    if (product.inventoryCount < entry.quantity) {
-      throw new AppError(`Not enough stock for ${product.name}`, 400);
+    const availableInventory = getInventoryValue(product);
+
+    if (availableInventory < item.quantity) {
+      console.warn('[orders] Item out of stock', {
+        productId: String(productId),
+        productName: product?.name,
+        requestedQuantity: item.quantity,
+        availableInventory
+      });
+
+      outOfStockItems.push({
+        item,
+        productId,
+        productName: product?.name,
+        requestedQuantity: item.quantity,
+        availableInventory
+      });
+      continue;
     }
 
-    items.push({
-      productId: productId,
-      quantity: entry.quantity,
-      priceAtPurchase: product.price
+    validItems.push({
+      productId,
+      quantity: item.quantity,
+      priceAtPurchase: product.price,
+      inventoryField: getInventoryField(product)
     });
   }
 
-  return items;
+  return { validItems, orphanedItems, outOfStockItems };
 };
 
 const getCartForUser = async (userId) => {
@@ -103,6 +172,7 @@ const releaseInventory = async (items) => {
 
 export const initializeOrder = async (req, res, next) => {
   try {
+    console.log('Request body:', req.body);
     const {
       paymentReference,
       deliveryAddress,
@@ -113,6 +183,18 @@ export const initializeOrder = async (req, res, next) => {
       customerCity,
       customerAddress
     } = req.body;
+
+    const validationResult = {
+      hasPaymentReference: Boolean(paymentReference),
+      hasDeliveryAddress: Boolean(deliveryAddress),
+      hasCustomerName: Boolean(customerName),
+      hasCustomerEmail: Boolean(customerEmail),
+      hasCustomerPhone: Boolean(customerPhone),
+      hasCustomerCity: Boolean(customerCity),
+      hasCustomerAddress: Boolean(customerAddress)
+    };
+
+    console.log('Validation result:', validationResult);
 
     // Enforce guard checking that backend secret environment keys have mounted properly
     if (!process.env.PAYSTACK_SECRET_KEY) {
@@ -133,15 +215,76 @@ export const initializeOrder = async (req, res, next) => {
 
     const existingOrder = await PendingOrder.findOne({ paymentReference, userId: req.user._id });
     if (existingOrder) {
+      const frontendCallbackUrl = process.env.FRONTEND_URL
+        ? `${process.env.FRONTEND_URL.replace(/\/+$/, '')}/order-success?reference=${encodeURIComponent(paymentReference)}`
+        : undefined;
+      const existingPaystackResponse = await initializePaystackTransaction({
+        email: customerEmail,
+        amount: Math.round(existingOrder.totalAmount * 100),
+        reference: paymentReference,
+        callback_url: frontendCallbackUrl,
+        metadata: {
+          orderId: String(existingOrder._id),
+          customerName,
+          customerPhone,
+          customerCity,
+          customerAddress
+        }
+      });
+
+      const existingAuthorizationUrl = existingPaystackResponse?.data?.authorization_url;
+      const existingAccessCode = existingPaystackResponse?.data?.access_code;
+
+      console.log('Paystack response:', existingPaystackResponse);
+
+      if (!existingAuthorizationUrl || !existingAccessCode) {
+        throw new AppError('Unable to initialize payment with Paystack', 502);
+      }
+
       return res.json({
         success: true,
         order: existingOrder,
-        amountInKobo: Math.round(existingOrder.totalAmount * 100)
+        amountInKobo: Math.round(existingOrder.totalAmount * 100),
+        paymentReference,
+        authorizationUrl: existingAuthorizationUrl,
+        accessCode: existingAccessCode,
+        callbackUrl: frontendCallbackUrl,
+        cartWarning: null
       });
     }
 
     const cart = await getCartForUser(req.user._id);
-    const items = await buildOrderItems(cart.items);
+    const { validItems, orphanedItems, outOfStockItems } = await syncCartItems(cart);
+
+    if (orphanedItems.length > 0 || outOfStockItems.length > 0) {
+      console.warn('[orders] Orphaned cart items removed before checkout', {
+        userId: String(req.user._id),
+        orphanedItems: orphanedItems.map((entry) => ({
+          productId: getCartItemProductId(entry.item),
+          quantity: entry.item?.quantity,
+          reason: entry.reason
+        })),
+        outOfStockItems: outOfStockItems.map((entry) => ({
+          productId: entry.productId,
+          productName: entry.productName,
+          requestedQuantity: entry.requestedQuantity,
+          availableInventory: entry.availableInventory
+        }))
+      });
+
+      cart.items = cart.items.filter((item) => {
+        const productId = getCartItemProductId(item);
+        return validItems.some((validItem) => String(validItem.productId) === String(productId));
+      });
+
+      await cart.save();
+    }
+
+    if (!validItems.length) {
+      throw new AppError('One or more products in your cart were removed and no valid items remain', 400);
+    }
+
+    const items = validItems;
     const subtotal = items.reduce((sum, item) => sum + item.priceAtPurchase * item.quantity, 0);
 
     let coupon = null;
@@ -189,13 +332,63 @@ export const initializeOrder = async (req, res, next) => {
       deliveryAddress
     });
 
+    console.info('[orders] Pending order created', {
+      orderId: String(order._id),
+      userId: String(req.user._id),
+      paymentReference,
+      amountInKobo: Math.round(totalAmount * 100)
+    });
+
+    const frontendCallbackUrl = process.env.FRONTEND_URL
+      ? `${process.env.FRONTEND_URL.replace(/\/+$/, '')}/order-success?reference=${encodeURIComponent(paymentReference)}`
+      : undefined;
+
+    const paystackResponse = await initializePaystackTransaction({
+      email: customerEmail,
+      amount: Math.round(totalAmount * 100),
+      reference: paymentReference,
+      callback_url: frontendCallbackUrl,
+      metadata: {
+        orderId: String(order._id),
+        customerName,
+        customerPhone,
+        customerCity,
+        customerAddress
+      }
+    });
+
+    console.log('Paystack response:', paystackResponse);
+
+    const authorizationUrl = paystackResponse?.data?.authorization_url;
+    const accessCode = paystackResponse?.data?.access_code;
+    const transactionReference = paystackResponse?.data?.reference || paymentReference;
+
+    if (!authorizationUrl || !accessCode) {
+      await releaseInventory(items);
+      await PendingOrder.findByIdAndDelete(order._id);
+      throw new AppError('Unable to initialize payment with Paystack', 502);
+    }
+
+    console.info('[orders] Paystack payment initialized', {
+      orderId: String(order._id),
+      paymentReference: transactionReference,
+      authorizationUrl
+    });
+
     res.status(201).json({
       success: true,
       order,
       subtotal,
       discount,
       totalAmount,
-      amountInKobo: Math.round(totalAmount * 100)
+      amountInKobo: Math.round(totalAmount * 100),
+      paymentReference: transactionReference,
+      authorizationUrl,
+      accessCode,
+      callbackUrl: frontendCallbackUrl,
+      cartWarning: (orphanedItems.length > 0 || outOfStockItems.length > 0)
+        ? 'Some unavailable products were removed from your cart. The remaining items are ready for checkout.'
+        : null
     });
   } catch (error) {
     next(error);
@@ -239,7 +432,26 @@ export const verifyOrder = async (req, res, next) => {
       order.paymentStatus = 'failed';
       await order.save();
       await releaseInventory(order.items);
+      console.warn('[orders] Payment verification failed', {
+        orderId: String(order._id),
+        paymentReference: reference,
+        paystackStatus: paystackResult?.status,
+        transactionStatus: transaction?.status
+      });
       throw new AppError('Payment verification failed', 400);
+    }
+
+    if (Math.round(Number(transaction.amount || 0)) !== Math.round(order.totalAmount * 100)) {
+      order.paymentStatus = 'failed';
+      await order.save();
+      await releaseInventory(order.items);
+      console.warn('[orders] Payment amount mismatch', {
+        orderId: String(order._id),
+        paymentReference: reference,
+        expected: Math.round(order.totalAmount * 100),
+        received: Number(transaction.amount || 0)
+      });
+      throw new AppError('Payment amount mismatch', 400);
     }
 
     await clearUserCart(req.user._id);

@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/context/useAppStore';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { calculateCartSummary, resolveCartItemProduct } from '@/utils/cartSummary';
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -9,18 +10,15 @@ const Cart = () => {
   const updateCartItem = useAppStore((state) => state.updateCartItem);
   const removeCartItem = useAppStore((state) => state.removeCartItem);
   const clearCart = useAppStore((state) => state.clearCart);
-  const items = cart?.items || [];
-  const getProduct = (item) =>
-    (item.productId && typeof item.productId === 'object' ? item.productId : item.productSnapshot) || null;
-  const subtotal = items.reduce((sum, item) => sum + (getProduct(item)?.price || 0) * item.quantity, 0);
+  const { items, subtotal, shippingFee, total } = calculateCartSummary(cart?.items || []);
 
   return (
     <div className="mx-auto grid max-w-[1400px] gap-6 px-4 py-8 lg:grid-cols-[1.3fr_0.7fr]">
       <section className="space-y-4">
         <h1 className="text-3xl font-black">Your cart</h1>
         {items.map((item, index) => {
-          const product = getProduct(item);
-          const productId = product?._id || item.productId;
+          const product = item.product || resolveCartItemProduct(item);
+          const productId = product?._id || item.productId?._id || item.productId;
           const itemId = productId || `cart-item-${index}`;
 
           return (
@@ -57,8 +55,8 @@ const Cart = () => {
         <h2 className="text-xl font-bold">Order summary</h2>
         <div className="mt-4 space-y-2 text-sm">
           <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
-          <div className="flex justify-between"><span>Shipping</span><span>Free</span></div>
-          <div className="flex justify-between border-t pt-3 text-base font-bold"><span>Total</span><span>{formatCurrency(subtotal)}</span></div>
+          <div className="flex justify-between"><span>Shipping</span><span>{shippingFee > 0 ? formatCurrency(shippingFee) : 'Free'}</span></div>
+          <div className="flex justify-between border-t pt-3 text-base font-bold"><span>Total</span><span>{formatCurrency(total)}</span></div>
         </div>
         <button onClick={() => navigate('/checkout')} className="mt-6 w-full rounded-full bg-[#6d4df2] px-5 py-4 font-semibold text-white">Checkout</button>
       </aside>
