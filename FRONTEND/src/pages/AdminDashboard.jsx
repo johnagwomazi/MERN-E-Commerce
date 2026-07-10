@@ -89,20 +89,20 @@ const AdminDashboard = () => {
 
   return (
     <div className="space-y-6 overflow-x-hidden">
-      <section className="rounded-[2rem] border border-white/70 bg-white p-6 shadow-[0_24px_80px_rgba(9,17,31,0.08)] sm:p-8 lg:p-10">
+      {/* <section className="rounded-[2rem] border border-white/70 bg-white p-5 shadow-[0_24px_80px_rgba(9,17,31,0.08)] sm:p-8 lg:p-10">
         <p className="text-xs uppercase tracking-[0.35em] text-ink/45">Admin dashboard</p>
-        <div className="mt-4 max-w-3xl">
-          <h1 className="text-3xl font-black tracking-tight text-ink sm:text-4xl lg:text-5xl">
+        <div className="mt-3 max-w-3xl sm:mt-4">
+          <h1 className="text-2xl font-black tracking-tight text-ink sm:text-4xl lg:text-5xl">
             Manage products with a cleaner command center.
           </h1>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-ink/65 sm:text-base">
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/65 sm:mt-4 sm:leading-7 sm:text-base">
             Upload, edit, feature, and moderate products from a premium workspace built for speed, clarity, and scale.
           </p>
         </div>
-      </section>
+      </section> */}
 
       {isAdmin ? (
-        <section className="rounded-[1.5rem] border border-white/70 bg-white p-6 shadow-[0_18px_60px_rgba(9,17,31,0.06)]">
+        <section className="rounded-[1.5rem] border border-white/70 bg-white p-5 shadow-[0_18px_60px_rgba(9,17,31,0.06)] sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.35em] text-ink/45">Approval settings</p>
@@ -119,14 +119,14 @@ const AdminDashboard = () => {
         </section>
       ) : null}
 
-      <form onSubmit={submit} className="grid gap-4 rounded-[1.5rem] border border-white/70 bg-white p-6 shadow-[0_18px_60px_rgba(9,17,31,0.06)] md:grid-cols-2 sm:p-8">
+      <form onSubmit={submit} className="grid gap-3 rounded-[1.5rem] border border-white/70 bg-white p-5 shadow-[0_18px_60px_rgba(9,17,31,0.06)] md:grid-cols-2 sm:gap-4 sm:p-8">
         <div className="md:col-span-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-xl font-bold text-ink">{editingId ? 'Edit Product' : 'Add New Product'}</h2>
+          <h2 className="text-lg font-bold text-ink sm:text-xl">{editingId ? 'Edit Product' : 'Add New Product'}</h2>
           {editingId ? (
             <button
               type="button"
               onClick={cancelEdit}
-              className="inline-flex items-center justify-center rounded-full bg-paper px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-white"
+              className="inline-flex h-11 items-center justify-center rounded-full bg-paper px-4 text-sm font-semibold text-ink transition-colors hover:bg-white sm:h-auto"
             >
               Cancel Edit
             </button>
@@ -135,21 +135,21 @@ const AdminDashboard = () => {
 
         <input
           required
-          className="rounded-2xl border border-ink/10 bg-paper p-4 outline-none transition-colors placeholder:text-ink/35 focus:border-[#6d4df2]/30 focus:bg-white"
+          className="rounded-2xl border border-ink/10 bg-paper px-4 py-3 outline-none transition-colors placeholder:text-ink/35 focus:border-[#6d4df2]/30 focus:bg-white"
           placeholder="Product name"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
         />
         <input
           required
-          className="rounded-2xl border border-ink/10 bg-paper p-4 outline-none transition-colors placeholder:text-ink/35 focus:border-[#6d4df2]/30 focus:bg-white"
+          className="rounded-2xl border border-ink/10 bg-paper px-4 py-3 outline-none transition-colors placeholder:text-ink/35 focus:border-[#6d4df2]/30 focus:bg-white"
           placeholder="Category"
           value={form.category}
           onChange={(e) => setForm({ ...form, category: e.target.value })}
         />
         <input
           required
-          className="rounded-2xl border border-ink/10 bg-paper p-4 outline-none transition-colors placeholder:text-ink/35 focus:border-[#6d4df2]/30 focus:bg-white"
+          className="rounded-2xl border border-ink/10 bg-paper px-4 py-3 outline-none transition-colors placeholder:text-ink/35 focus:border-[#6d4df2]/30 focus:bg-white"
           placeholder="Price"
           type="number"
           value={form.price}
@@ -157,7 +157,7 @@ const AdminDashboard = () => {
         />
         <input
           required
-          className="rounded-2xl border border-ink/10 bg-paper p-4 outline-none transition-colors placeholder:text-ink/35 focus:border-[#6d4df2]/30 focus:bg-white"
+          className="rounded-2xl border border-ink/10 bg-paper px-4 py-3 outline-none transition-colors placeholder:text-ink/35 focus:border-[#6d4df2]/30 focus:bg-white"
           placeholder="Stock"
           type="number"
           value={form.inventoryCount}
@@ -165,7 +165,7 @@ const AdminDashboard = () => {
         />
         <textarea
           required
-          className="min-h-32 rounded-2xl border border-ink/10 bg-paper p-4 outline-none transition-colors placeholder:text-ink/35 focus:border-[#6d4df2]/30 focus:bg-white md:col-span-2"
+          className="min-h-28 rounded-2xl border border-ink/10 bg-paper px-4 py-3 outline-none transition-colors placeholder:text-ink/35 focus:border-[#6d4df2]/30 focus:bg-white md:col-span-2 sm:min-h-32"
           placeholder="Description"
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -176,11 +176,11 @@ const AdminDashboard = () => {
             type="file"
             accept="image/*"
             onChange={handleImageChange}
-            className="w-full rounded-2xl border border-ink/10 bg-paper p-4 outline-none transition-colors file:mr-4 file:rounded-xl file:border-0 file:bg-white file:px-4 file:py-2 file:text-sm file:font-semibold file:text-ink hover:bg-white"
+            className="w-full rounded-2xl border border-ink/10 bg-paper px-4 py-3 outline-none transition-colors file:mr-4 file:rounded-xl file:border-0 file:bg-white file:px-4 file:py-2 file:text-sm file:font-semibold file:text-ink hover:bg-white"
           />
-          {preview ? <img src={preview} alt="Preview" className="mt-4 h-40 w-40 rounded-2xl object-cover shadow-sm" /> : null}
+          {preview ? <img src={preview} alt="Preview" className="mt-3 h-28 w-28 rounded-2xl object-cover shadow-sm sm:mt-4 sm:h-40 sm:w-40" /> : null}
         </div>
-        <label className="flex items-center gap-2 text-sm font-medium text-ink">
+        <label className="flex items-center gap-2 text-sm font-medium text-ink md:col-span-1">
           <input
             type="checkbox"
             checked={form.featured}
@@ -188,12 +188,82 @@ const AdminDashboard = () => {
           />
           Featured product
         </label>
-        <button className="rounded-full bg-[#6d4df2] px-5 py-4 font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-[#5f3ed8]">
+        <button className="h-12 w-full rounded-full bg-[#6d4df2] px-5 font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-[#5f3ed8] md:w-auto">
           {editingId ? 'Save Changes' : 'Upload Product'}
         </button>
       </form>
 
-      <div className="overflow-hidden rounded-[1.5rem] border border-white/70 bg-white shadow-[0_18px_60px_rgba(9,17,31,0.06)]">
+      <div className="md:hidden">
+        {adminProducts.length === 0 ? (
+          <div className="rounded-[1.5rem] border border-white/70 bg-white px-5 py-10 text-center shadow-[0_18px_60px_rgba(9,17,31,0.06)]">
+            <p className="text-base font-bold text-ink">No products yet</p>
+            <p className="mt-2 text-sm leading-6 text-ink/55">
+              Add your first product to start building the catalog.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {adminProducts.map((product) => (
+              <article key={product._id} className="overflow-hidden rounded-[1.5rem] border border-white/70 bg-white shadow-[0_18px_60px_rgba(9,17,31,0.06)]">
+                <div className="flex gap-3 p-4">
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    className="h-20 w-20 shrink-0 rounded-2xl object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-base font-bold text-ink">{product.name}</h3>
+                        <p className="mt-1 text-sm text-ink/55">{product.category}</p>
+                      </div>
+                      <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/70">
+                        {product.featured ? 'Featured' : 'Regular'}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-lg font-black text-ink">{formatCurrency(product.price)}</p>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-ink/65">
+                      <span className="rounded-full bg-paper px-3 py-1">Stock: {product.inventoryCount}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleFeaturedProduct(product)}
+                        className="rounded-full bg-paper px-3 py-1 transition-colors hover:bg-white"
+                      >
+                        Featured: {product.featured ? 'Yes' : 'No'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`grid gap-2 border-t border-slate-100 p-3 ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  <button
+                    type="button"
+                    onClick={() => startEdit(product)}
+                    className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-paper px-4 font-semibold text-ink transition-all hover:bg-white"
+                    aria-label="Edit product"
+                  >
+                    <Edit size={16} />
+                    <span className="ml-2">Edit</span>
+                  </button>
+                  {isAdmin ? (
+                    <button
+                      type="button"
+                      onClick={() => deleteProduct(product._id)}
+                      className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-red-50 px-4 font-semibold text-red-600 transition-all hover:bg-red-100"
+                      aria-label="Delete product"
+                    >
+                      <Trash2 size={16} />
+                      <span className="ml-2">Delete</span>
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-[1.5rem] border border-white/70 bg-white shadow-[0_18px_60px_rgba(9,17,31,0.06)] md:block">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-paper">

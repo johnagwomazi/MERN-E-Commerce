@@ -22,17 +22,9 @@ const AdminLayout = () => {
 
   return (
     <div className="min-h-screen bg-paper text-ink">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-80 lg:flex">
+      <aside className="fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] w-80 lg:flex">
         <div className="flex h-full w-full flex-col overflow-hidden border-r border-white/70 bg-white/95 shadow-[0_24px_80px_rgba(9,17,31,0.08)] backdrop-blur-xl">
-          <div className="bg-[linear-gradient(135deg,#111827_0%,#6d4df2_52%,#ff7aa8_100%)] px-6 py-6 text-white">
-            <p className="text-xs uppercase tracking-[0.35em] text-white/70">Admin</p>
-            <h2 className="mt-3 text-2xl font-black tracking-tight">Control Center</h2>
-            <p className="mt-3 text-sm leading-6 text-white/75">
-              Move between dashboard, orders, analytics, and approvals without losing context.
-            </p>
-          </div>
-
-          <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+          <nav className="flex-1 space-y-1 overflow-y-auto p-3 pt-6">
             {navItems.map((item) => {
               const active = item.to === '/admin'
                 ? location.pathname === '/admin'
