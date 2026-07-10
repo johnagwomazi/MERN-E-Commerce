@@ -10,6 +10,7 @@ const AdminOrders = () => {
   const adminLoading = useAppStore((state) => state.adminLoading);
   const error = useAppStore((state) => state.error);
   const [tab, setTab] = useState('pending');
+  const [expandedOrderId, setExpandedOrderId] = useState('');
 
   useEffect(() => {
     loadAdminOrders();
@@ -25,49 +26,169 @@ const AdminOrders = () => {
 
   const visibleOrders = tab === 'delivered' ? deliveredOrders : pendingOrders;
 
-  return (
-    <div className="mx-auto max-w-7xl px-4 py-10">
-      <div className="rounded-[2rem] bg-[linear-gradient(135deg,#7a5af8_0%,#b46ff7_52%,#ff7aa8_100%)] p-8 text-white shadow-[0_24px_80px_rgba(109,77,242,0.25)]">
-        <p className="text-xs uppercase tracking-[0.35em] text-white/70">Admin Orders</p>
-        <h1 className="mt-3 text-4xl font-black tracking-tight">Pending and delivered orders.</h1>
-        <p className="mt-4 max-w-2xl text-white/80">Track paid orders, move completed orders to delivered, and keep the workflow organized.</p>
-        <div className="mt-6">
-          <Link
-            to="/admin"
-            className="inline-flex rounded-full bg-white px-5 py-3 font-semibold text-[#6d4df2]"
-          >
-            Add New Product
-          </Link>
-        </div>
-      </div>
+  const handleTabChange = (nextTab) => {
+    setTab(nextTab);
+    setExpandedOrderId('');
+  };
 
-      <div className="mt-6 flex gap-2 rounded-full bg-white p-2 shadow-[0_18px_60px_rgba(9,17,31,0.08)]">
-        <button
-          type="button"
-          onClick={() => setTab('pending')}
-          className={`rounded-full px-5 py-3 text-sm font-semibold ${tab === 'pending' ? 'bg-[#6d4df2] text-white' : 'text-ink/60'}`}
-        >
-          Pending / Paid Orders
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('delivered')}
-          className={`rounded-full px-5 py-3 text-sm font-semibold ${tab === 'delivered' ? 'bg-[#6d4df2] text-white' : 'text-ink/60'}`}
-        >
-          Delivered Orders
-        </button>
+  return (
+    <div className="mx-auto max-w-7xl px-4">
+      <div className="sticky top-3 z-20 -mx-4 px-4 py-2 sm:static sm:mx-0 sm:px-0 sm:py-0">
+        <div className="grid grid-cols-2 rounded-2xl bg-white p-1.5 shadow-[0_18px_60px_rgba(9,17,31,0.08)] sm:flex sm:gap-2 sm:rounded-full sm:p-2">
+          <button
+            type="button"
+            onClick={() => handleTabChange('pending')}
+            className={`rounded-xl px-4 py-3 text-sm font-semibold transition-colors sm:rounded-full sm:px-5 ${
+              tab === 'pending' ? 'bg-[#6d4df2] text-white' : 'text-ink/60'
+            }`}
+          >
+            Pending / Paid Orders
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange('delivered')}
+            className={`rounded-xl px-4 py-3 text-sm font-semibold transition-colors sm:rounded-full sm:px-5 ${
+              tab === 'delivered' ? 'bg-[#6d4df2] text-white' : 'text-ink/60'
+            }`}
+          >
+            Delivered Orders
+          </button>
+        </div>
       </div>
 
       {error ? <div className="mt-6 rounded-2xl bg-red-50 px-4 py-3 text-red-700">{error}</div> : null}
 
-      <div className="mt-6 space-y-4">
+      <div className="mt-6 space-y-4 sm:mt-6">
         {adminLoading ? (
           <div className="rounded-[1.5rem] border border-white/70 bg-white p-6 text-ink/60">Loading orders...</div>
         ) : visibleOrders.length === 0 ? (
           <div className="rounded-[1.5rem] border border-white/70 bg-white p-6 text-ink/60">No orders found.</div>
         ) : (
-          visibleOrders.map((order) => (
-            <div key={order._id} className="rounded-[1.5rem] border border-white/70 bg-white p-6 shadow-[0_18px_60px_rgba(9,17,31,0.08)]">
+          <>
+            <div className="space-y-3 sm:hidden">
+              {visibleOrders.map((order) => {
+                const isExpanded = expandedOrderId === order._id;
+
+                return (
+                  <div key={order._id} className="overflow-hidden rounded-[1.5rem] border border-white/70 bg-white shadow-[0_18px_60px_rgba(9,17,31,0.08)]">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedOrderId((current) => (current === order._id ? '' : order._id))}
+                      className="flex w-full flex-col gap-2 px-4 py-4 text-left"
+                      aria-expanded={isExpanded}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 space-y-1">
+                          <p className="text-[11px] uppercase tracking-[0.3em] text-ink/45">Customer</p>
+                          <h3 className="truncate text-base font-black text-ink">
+                            {order.userId?.name || 'Unknown customer'}
+                          </h3>
+                          <p className="truncate text-sm text-ink/60">{order.userId?.email}</p>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold ${tab === 'delivered' || order.delivered ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
+                          {tab === 'delivered' || order.delivered ? 'Delivered' : 'Pending'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-sm text-ink/70">
+                        <div className="rounded-2xl bg-paper px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-[0.25em] text-ink/40">Total</p>
+                          <p className="mt-1 text-lg font-black text-ink">{formatCurrency(order.totalAmount)}</p>
+                        </div>
+                        <div className="rounded-2xl bg-paper px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-[0.25em] text-ink/40">Items</p>
+                          <p className="mt-1 text-lg font-black text-ink">{order.items.length}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-1 text-sm text-ink/60">
+                        <p className="truncate">Email: {order.userId?.email}</p>
+                        <p className="truncate">City: {order.customerCity || 'N/A'}</p>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[#6d4df2]">
+                          {isExpanded ? 'Hide details' : 'View details'}
+                        </span>
+                        <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/70">
+                          {isExpanded ? '-' : '+'}
+                        </span>
+                      </div>
+                    </button>
+
+                    {isExpanded ? (
+                      <div className="border-t border-slate-100 px-4 py-4">
+                        <div className="space-y-3 text-sm text-ink/70">
+                          <div className="rounded-2xl bg-paper px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.25em] text-ink/40">Checkout name</p>
+                            <p className="mt-1 font-medium text-ink">{order.customerName || 'N/A'}</p>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-2xl bg-paper px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.25em] text-ink/40">Phone</p>
+                              <p className="mt-1 font-medium text-ink">{order.customerPhone || 'N/A'}</p>
+                            </div>
+                            <div className="rounded-2xl bg-paper px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.25em] text-ink/40">Order date</p>
+                              <p className="mt-1 font-medium text-ink">{new Date(order.createdAt).toLocaleString()}</p>
+                            </div>
+                          </div>
+                          <div className="rounded-2xl bg-paper px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.25em] text-ink/40">Full address</p>
+                            <p className="mt-1 leading-relaxed text-ink">{order.customerAddress || 'N/A'}</p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-[0.25em] text-ink/40">Product list</p>
+                            <div className="mt-3 space-y-3">
+                              {order.items.map((item) => (
+                                <div key={item.productId?._id || item._id || `${order._id}-${item.quantity}`} className="flex flex-col gap-3 rounded-2xl bg-slate-50 p-3 sm:flex-row sm:items-center">
+                                  <img
+                                    src={item.productId?.image}
+                                    alt={item.productId?.name}
+                                    className="h-24 w-full rounded-xl object-cover sm:h-14 sm:w-14"
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="font-semibold text-ink">{item.productId?.name}</p>
+                                    <p className="text-xs text-ink/50">Qty {item.quantity}</p>
+                                  </div>
+                                  <span className="text-sm font-semibold text-ink">
+                                    {formatCurrency((item.priceAtPurchase || 0) * item.quantity)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                            <p className="text-sm font-semibold text-ink">Total amount</p>
+                            <p className="text-lg font-black text-ink">{formatCurrency(order.totalAmount)}</p>
+                          </div>
+
+                          {tab === 'pending' ? (
+                            <button
+                              type="button"
+                              onClick={() => markOrderDelivered(order._id)}
+                              className="mt-2 w-full rounded-full bg-[#6d4df2] px-5 py-3 font-semibold text-white"
+                            >
+                              Mark Delivered
+                            </button>
+                          ) : (
+                            <span className="mt-2 flex w-full items-center justify-center rounded-full bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
+                              Delivered
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="hidden space-y-4 sm:block">
+              {visibleOrders.map((order) => (
+                <div key={order._id} className="rounded-[1.5rem] border border-white/70 bg-white p-6 shadow-[0_18px_60px_rgba(9,17,31,0.08)]">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.35em] text-ink/45">Customer</p>
@@ -115,8 +236,10 @@ const AdminOrders = () => {
                   </span>
                 )}
               </div>
+                </div>
+              ))}
             </div>
-          ))
+          </>
         )}
       </div>
     </div>
