@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Cart from '../models/Cart.js';
 import PendingOrder from '../models/PendingOrder.js';
 import DeliveredOrder from '../models/DeliveredOrder.js';
@@ -18,6 +19,46 @@ const calculateDiscount = (subtotal, coupon) => {
   return Math.min(coupon.discountValue, subtotal);
 };
 
+const toFiniteNumber = (value) => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  if (value == null) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const resolveInventorySource = (product) => {
+  const candidates = [
+    { field: 'inventoryCount', value: toFiniteNumber(product?.inventoryCount) },
+    { field: 'countInStock', value: toFiniteNumber(product?.countInStock) },
+    { field: 'stock', value: toFiniteNumber(product?.stock) }
+  ].filter((candidate) => candidate.value !== null);
+
+  if (candidates.length === 0) {
+    return { field: 'inventoryCount', value: 0 };
+  }
+
+  const preferredPositive = candidates.find((candidate) => candidate.field === 'inventoryCount' && candidate.value > 0)
+    || candidates.find((candidate) => candidate.field === 'countInStock' && candidate.value > 0)
+    || candidates.find((candidate) => candidate.field === 'stock' && candidate.value > 0);
+
+  if (preferredPositive) {
+    return preferredPositive;
+  }
+
+  return candidates[0];
+};
+
 const findProductByAnyId = async (productId) => {
   const mongooseProduct = await Product.findById(productId);
   if (mongooseProduct) {
@@ -27,58 +68,116 @@ const findProductByAnyId = async (productId) => {
   return Product.collection.findOne({ _id: productId });
 };
 
+const buildProductIdCandidates = (value) => {
+  const candidates = [];
+  const addCandidate = (candidate) => {
+    if (candidate == null) {
+      return;
+    }
+
+    const key = typeof candidate === 'string' ? `string:${candidate}` : candidate?.toString?.() || JSON.stringify(candidate);
+
+    if (!candidates.some((entry) => entry.key === key)) {
+      candidates.push({ key, value: candidate });
+    }
+  };
+
+  addCandidate(value);
+  addCandidate(String(value));
+
+  if (typeof value === 'string' && mongoose.Types.ObjectId.isValid(value)) {
+    addCandidate(new mongoose.Types.ObjectId(value));
+  }
+
+  if (value?.toString && mongoose.Types.ObjectId.isValid(value.toString())) {
+    addCandidate(new mongoose.Types.ObjectId(value.toString()));
+  }
+
+  return candidates;
+};
+
 const getCartItemProductId = (item) => item?.productId?._id || item?.productId || item?.productSnapshot?._id || item?.productSnapshot?.id || null;
 
 const getInventoryField = (product) => {
-  if (Number.isFinite(product?.inventoryCount)) {
-    return 'inventoryCount';
-  }
-
-  if (Number.isFinite(product?.countInStock)) {
-    return 'countInStock';
-  }
-
-  return 'inventoryCount';
+  return resolveInventorySource(product).field;
 };
 
 const getInventoryValue = (product) => {
-  if (Number.isFinite(product?.inventoryCount)) {
-    return Number(product.inventoryCount);
-  }
-
-  if (Number.isFinite(product?.countInStock)) {
-    return Number(product.countInStock);
-  }
-
-  return 0;
+  return resolveInventorySource(product).value;
 };
 
-const updateProductInventoryByAnyId = async (productId, quantity, delta, productHint = null) => {
-  const product = productHint || await findProductByAnyId(productId);
+const updateProductInventoryByAnyId = async (
+  productId,
+  quantity,
+  delta,
+  productHint = null
+) => {
+  const product =
+    productHint || (await findProductByAnyId(productId));
+
   if (!product) {
+    console.error("Product not found:", productId);
     return null;
   }
 
   const inventoryField = getInventoryField(product);
-  const update = { $inc: { [inventoryField]: delta * quantity } };
-  const mongooseQuery = delta < 0
-    ? { _id: productId, [inventoryField]: { $gte: quantity } }
-    : { _id: productId };
+  const currentInventory = getInventoryValue(product);
 
-  const mongooseResult = await Product.findOneAndUpdate(mongooseQuery, update, { new: true });
-  if (mongooseResult) {
-    return mongooseResult;
+  if (delta < 0 && currentInventory < quantity) {
+    console.warn('[orders] Inventory check failed before update', {
+      productId: String(product._id),
+      inventoryField,
+      currentInventory,
+      requestedQuantity: quantity
+    });
+    return null;
   }
 
-  const rawQuery = delta < 0
-    ? { _id: productId, [inventoryField]: { $gte: quantity } }
-    : { _id: productId };
+  const update = {
+    $inc: {
+      [inventoryField]: delta * quantity
+    }
+  };
 
-  const { value } = await Product.collection.findOneAndUpdate(rawQuery, update, {
-    returnDocument: 'after'
+  const idCandidates = buildProductIdCandidates(product?._id || productId);
+  let updatedProduct = null;
+
+  for (const candidate of idCandidates) {
+    updatedProduct = await Product.findOneAndUpdate(
+      { _id: candidate.value },
+      update,
+      {
+        new: true
+      }
+    );
+
+    if (updatedProduct) {
+      break;
+    }
+
+    const rawResult = await Product.collection.findOneAndUpdate(
+      { _id: candidate.value },
+      update,
+      {
+        returnDocument: 'after'
+      }
+    );
+
+    if (rawResult?.value) {
+      updatedProduct = rawResult.value;
+      break;
+    }
+  }
+
+  console.log("Inventory update result:", {
+    productId: product._id,
+    inventoryField,
+    quantity,
+    delta,
+    success: !!updatedProduct
   });
 
-  return value || null;
+  return updatedProduct;
 };
 
 const syncCartItems = async (cart) => {
@@ -155,12 +254,44 @@ const getCartForUser = async (userId) => {
 };
 
 const reserveInventory = async (items) => {
-  for (const item of items) {
-    const updatedProduct = await updateProductInventoryByAnyId(item.productId, item.quantity, -1);
+  const reservedItems = [];
 
-    if (!updatedProduct) {
-      throw new AppError('One or more items in your cart just sold out. Please modify your cart.', 400);
+  try {
+    for (const item of items) {
+      const updatedProduct = await updateProductInventoryByAnyId(
+        item.productId,
+        item.quantity,
+        -1
+      );
+
+      console.log("Inventory reservation result:", updatedProduct);
+
+      if (!updatedProduct) {
+        throw new AppError(
+          "One or more items in your cart just sold out. Please modify your cart.",
+          400
+        );
+      }
+
+      reservedItems.push(item);
     }
+
+    return true;
+  } catch (error) {
+    // rollback any successful reservations
+    for (const item of reservedItems) {
+      try {
+        await updateProductInventoryByAnyId(
+          item.productId,
+          item.quantity,
+          1
+        );
+      } catch (rollbackError) {
+        console.error("Inventory rollback failed", rollbackError);
+      }
+    }
+
+    throw error;
   }
 };
 
@@ -313,7 +444,20 @@ export const initializeOrder = async (req, res, next) => {
 
     const totalAmount = Math.max(subtotal - discount, 0);
 
-    await reserveInventory(items);
+    let inventoryReservationWarning = null;
+
+    try {
+      await reserveInventory(items);
+    } catch (reservationError) {
+      inventoryReservationWarning =
+        'We could not confirm stock reservation right now, but your payment can still proceed.';
+
+      console.warn('[orders] Inventory reservation failed, continuing checkout', {
+        paymentReference,
+        userId: String(req.user._id),
+        message: reservationError?.message
+      });
+    }
 
     const order = await PendingOrder.create({
       userId: req.user._id,
@@ -386,9 +530,10 @@ export const initializeOrder = async (req, res, next) => {
       authorizationUrl,
       accessCode,
       callbackUrl: frontendCallbackUrl,
-      cartWarning: (orphanedItems.length > 0 || outOfStockItems.length > 0)
+      cartWarning: inventoryReservationWarning
+        || ((orphanedItems.length > 0 || outOfStockItems.length > 0)
         ? 'Some unavailable products were removed from your cart. The remaining items are ready for checkout.'
-        : null
+        : null)
     });
   } catch (error) {
     next(error);
