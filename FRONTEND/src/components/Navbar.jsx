@@ -150,62 +150,32 @@ const Navbar = () => {
         </nav>
 
 
-        {/* MOBILE ACTIONS */}
-        <div className="ml-auto flex items-center gap-2 lg:hidden">
-          <button
-            type="button"
-            onClick={() => {
-              setMobileSearchOpen((current) => !current);
-              setMobileMenuOpen(false);
-            }}
-            className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition-colors ${
-              mobileSearchOpen
-                ? 'border-[#6d4df2]/30 bg-[#6d4df2]/10 text-[#6d4df2]'
-                : 'border-ink/10 bg-paper text-ink/70'
-            }`}
-            aria-label="Toggle search"
-            aria-expanded={mobileSearchOpen}
-          >
-            <Search size={18} />
-          </button>
+{/* MOBILE ACTIONS */}
+<div className="ml-auto flex items-center gap-2 lg:hidden">
+  <Link
+    to="/cart"
+    className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white"
+  >
+    <ShoppingCart size={20} />
 
-          <Link
-            to="/cart"
-            className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-ink/10 bg-paper text-ink/70"
-            aria-label="Go to cart"
-            onClick={() => {
-              setMobileMenuOpen(false);
-              setMobileSearchOpen(false);
-            }}
-          >
-            <ShoppingCart size={18} />
-            {cartCount > 0 && (
-              <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-[#6d4df2] px-1 text-[10px] font-bold text-white">
-                {cartCount}
-              </span>
-            )}
-          </Link>
+    {cartCount > 0 && (
+      <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#6d4df2] px-1 text-[10px] font-bold text-white">
+        {cartCount}
+      </span>
+    )}
+  </Link>
 
-          <button
-            type="button"
-            onClick={() => {
-              setMobileMenuOpen((current) => !current);
-              setMobileSearchOpen(false);
-            }}
-            className={`relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition-colors ${
-              mobileMenuOpen
-                ? 'border-[#6d4df2]/30 bg-[#6d4df2]/10 text-[#6d4df2]'
-                : 'border-ink/10 bg-paper text-ink/70'
-            }`}
-            aria-label="Toggle menu"
-            aria-expanded={mobileMenuOpen}
-          >
-            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-            {!mobileMenuOpen && pendingOrderCount > 0 && (
-              <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#6d4df2]" />
-            )}
-          </button>
-        </div>
+  <button
+    type="button"
+    onClick={() => {
+      setMobileMenuOpen((current) => !current);
+      setMobileSearchOpen(false);
+    }}
+    className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white"
+  >
+    {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+  </button>
+</div>
       </div>
 
       {/* MOBILE SEARCH PANEL
@@ -237,60 +207,101 @@ const Navbar = () => {
           </div>
         </div>
       </div> */}
-
-           {/* MOBILE CONTROLS & PANEL ROW CONTAINER */}
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:hidden">
-        
-        {/* MOBILE SEARCH PANEL DROPDOWN */}
-        <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out ${
-            mobileSearchOpen ? 'max-h-20 opacity-100 pb-3' : 'max-h-0 opacity-0 pointer-events-none'
-          }`}
-        >
-          <form 
-            onSubmit={(e) => { e.preventDefault(); handleSearch(); }}
-            className="flex items-center gap-2 rounded-2xl border border-ink/5 bg-paper p-2"
-          >
-            <Search size={18} className="text-ink/40 ml-2 shrink-0" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') handleSearch();
+      {/* MOBILE DRAWER */}
+      <div
+        className={`fixed inset-x-0 top-16 z-40 h-[calc(100vh-4rem)] bg-white transition-all duration-300 lg:hidden ${
+          mobileMenuOpen
+            ? 'translate-y-0 opacity-100'
+            : '-translate-y-4 pointer-events-none opacity-0'
+        }`}
+      >
+        <div className="h-full overflow-y-auto">
+          {/* SEARCH */}
+          <div className="border-b border-slate-100 p-4">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSearch();
               }}
-              className="w-full bg-transparent text-sm outline-none placeholder:text-ink/35 text-ink"
-              placeholder="Search products..."
-            />
-            <button
-              type="submit"
-              className="rounded-xl bg-[#6d4df2] px-4 py-2 text-xs font-semibold text-white shadow-sm"
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2"
             >
-              Go
-            </button>
-          </form>
-        </div>
+              <Search size={18} className="text-slate-400" />
 
-        {/* MOBILE MENU PANEL */}
-        <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out ${
-            mobileMenuOpen ? 'max-h-[32rem] opacity-100 pb-4' : 'max-h-0 opacity-0 pointer-events-none'
-          }`}
-        >
-          <div className="flex flex-col gap-1.5 rounded-2xl border border-ink/5 bg-paper/50 p-2 text-sm font-medium text-ink/80">
-           {/* MOBILE CATEGORIES */}
-          <div className="mb-2 overflow-hidden rounded-2xl border border-ink/10 bg-white">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search products..."
+                className="w-full bg-transparent text-sm outline-none"
+              />
+
+              <button
+                type="submit"
+                className="rounded-lg bg-[#6d4df2] px-4 py-2 text-xs font-semibold text-white"
+              >
+                Search
+              </button>
+            </form>
+          </div>
+
+          {/* USER CARD */}
+          {user ? (
+            <div className="border-b border-slate-100 p-4">
+              <Link
+                to="/dashboard"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 rounded-2xl bg-[#6d4df2]/5 p-4"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#6d4df2] text-white">
+                  <User size={20} />
+                </div>
+
+                <div className="flex-1">
+                  <p className="font-bold text-slate-900">
+                    {user.name}
+                  </p>
+
+                  <p className="text-xs text-slate-500">
+                    View Dashboard
+                  </p>
+                </div>
+
+                <ChevronRight size={18} />
+              </Link>
+            </div>
+          ) : (
+            <div className="border-b border-slate-100 p-4">
+              <Link
+                to="/signup"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex h-11 items-center justify-center rounded-xl bg-[#6d4df2] font-semibold text-white"
+              >
+                Create Account
+              </Link>
+
+              <Link
+                to="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="mt-3 flex justify-center text-sm font-medium text-[#6d4df2]"
+              >
+                Already have an account? Login
+              </Link>
+            </div>
+          )}
+
+          {/* CATEGORIES */}
+          <div className="border-b border-slate-100">
             <button
               type="button"
-              onClick={() => setMobileCategoriesOpen((current) => !current)}
-              className="flex w-full items-center justify-between px-4 py-3"
+              onClick={() =>
+                setMobileCategoriesOpen((current) => !current)
+              }
+              className="flex w-full items-center justify-between px-4 py-4 font-semibold"
             >
-              <span className="font-semibold text-ink">
-                Browse Categories
-              </span>
+              <span>Browse Categories</span>
 
               <ChevronDown
                 size={18}
-                className={`transition-transform duration-300 ${
+                className={`transition-transform ${
                   mobileCategoriesOpen ? 'rotate-180' : ''
                 }`}
               />
@@ -299,16 +310,16 @@ const Navbar = () => {
             <div
               className={`overflow-hidden transition-all duration-300 ${
                 mobileCategoriesOpen
-                  ? 'max-h-[400px] opacity-100'
-                  : 'max-h-0 opacity-0'
+                  ? 'max-h-[500px]'
+                  : 'max-h-0'
               }`}
             >
-              <div className="grid grid-cols-2 gap-2 p-3">
+              <div className="grid grid-cols-2 gap-2 p-4">
                 {mobileCategories.map((item) => (
                   <button
                     key={item}
                     onClick={() => handleCategorySelect(item)}
-                    className="rounded-xl bg-slate-50 px-3 py-3 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-left text-sm font-medium"
                   >
                     {item}
                   </button>
@@ -316,109 +327,47 @@ const Navbar = () => {
               </div>
             </div>
           </div>
-            {user ? (
-              <>
-                <Link 
-                  to="/dashboard" 
-                  onClick={() => setMobileMenuOpen(false)} 
-                  className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 border border-ink/5 text-ink shadow-sm active:bg-paper/40 transition-colors"
+
+          {/* ACCOUNT LINKS */}
+          {user && (
+            <div className="p-2">
+              {(user.role === 'manager' ||
+                user.role === 'admin') && (
+                <Link
+                  to="/admin"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-between rounded-xl px-4 py-4 hover:bg-slate-50"
                 >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#6d4df2]/10 text-[#6d4df2]">
-                    <User size={16} />
-                  </span>
-                  <span className="flex-1 truncate font-bold text-ink">{user.name}</span>
-                  <ChevronRight size={16} className="text-ink/30" />
-                </Link>
-                
-                {(user.role === 'manager' || user.role === 'admin') && (
-                  <Link 
-                    to="/admin" 
-                    onClick={() => setMobileMenuOpen(false)} 
-                    className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-white/60 active:bg-paper/40 transition-colors"
-                  >
-                    <span className="flex items-center gap-3">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#6d4df2]/10 text-[#6d4df2]">
-                        <ShieldCheck size={16} />
-                      </span>
-                      <span>Management</span>
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {pendingOrderCount > 0 && (
-                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#6d4df2] px-1.5 text-xs font-bold text-white">
-                          {pendingOrderCount}
-                        </span>
-                      )}
-                      <ChevronRight size={16} className="text-ink/30" />
-                    </div>
-                  </Link>
-                )}
+                  <div className="flex items-center gap-3">
+                    <ShieldCheck size={18} />
 
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-red-600 hover:bg-red-50/50 transition-colors text-left"
-                >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-red-500">
-                    <LogOut size={16} />
-                  </span>
-                  <span>Logout</span>
-                </button>
-
-                <div className="mt-1 overflow-hidden rounded-2xl border border-ink/5 bg-white">
-                  <button
-                    type="button"
-                    onClick={() => setMobileCategoriesOpen((current) => !current)}
-                    className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-ink transition-colors hover:bg-paper/70"
-                    aria-expanded={mobileCategoriesOpen}
-                  >
-                    <span>Categories</span>
-                    <ChevronDown
-                      size={16}
-                      className={`transition-transform duration-200 ${mobileCategoriesOpen ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-
-                  <div
-                    className={`grid overflow-hidden transition-all duration-300 ease-out ${
-                      mobileCategoriesOpen ? 'max-h-72 opacity-100' : 'max-h-0 opacity-0'
-                    }`}
-                  >
-                    <div className="grid grid-cols-2 gap-2 p-3">
-                      {mobileCategories.map((item) => (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => handleCategorySelect(item)}
-                          className="rounded-xl border border-ink/10 bg-paper px-3 py-2.5 text-left text-xs font-semibold text-ink transition-colors hover:bg-white"
-                        >
-                          {item}
-                        </button>
-                      ))}
-                    </div>
+                    <span>Management</span>
                   </div>
-                </div>
-              </>
-            ) : (
-              <div className="grid grid-cols-2 gap-2 p-1">
-                <Link 
-                  to="/login" 
-                  onClick={() => setMobileMenuOpen(false)} 
-                  className="flex items-center justify-center rounded-xl border border-ink/10 bg-white py-2.5 text-center transition-colors active:bg-paper/40"
-                >
-                  Login
-                </Link>
-                <Link 
-                  to="/signup" 
-                  onClick={() => setMobileMenuOpen(false)} 
-                  className="flex items-center justify-center rounded-xl bg-[#6d4df2] py-2.5 text-center font-semibold text-white shadow-sm active:bg-[#5b3ee0] transition-colors"
-                >
-                  Sign up
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
 
+                  <div className="flex items-center gap-2">
+                    {pendingOrderCount > 0 && (
+                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#6d4df2] px-1 text-[10px] font-bold text-white">
+                        {pendingOrderCount}
+                      </span>
+                    )}
+
+                    <ChevronRight size={16} />
+                  </div>
+                </Link>
+              )}
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex w-full items-center gap-3 rounded-xl px-4 py-4 text-red-600 hover:bg-red-50"
+              >
+                <LogOut size={18} />
+
+                <span>Logout</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
 
