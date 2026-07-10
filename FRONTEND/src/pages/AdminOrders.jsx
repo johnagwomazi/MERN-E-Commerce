@@ -32,7 +32,7 @@ const AdminOrders = () => {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4">
+    <div className="mx-0 md:mx-auto max-w-7xl px-1 md:px-4">
       <div className="sticky top-3 z-20 -mx-4 px-4 py-2 sm:static sm:mx-0 sm:px-0 sm:py-0">
         <div className="grid grid-cols-2 rounded-2xl bg-white p-1.5 shadow-[0_18px_60px_rgba(9,17,31,0.08)] sm:flex sm:gap-2 sm:rounded-full sm:p-2">
           <button
