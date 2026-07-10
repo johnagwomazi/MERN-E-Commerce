@@ -23,6 +23,7 @@ import Analytics from '@/pages/Analytics';
 import AdminOrders from '@/pages/AdminOrders';
 import People from '@/pages/People';
 import PendingUploads from '@/pages/PendingUploads';
+import AdminLayout from '@/components/admin/AdminLayout';
 
 const App = () => {
   const bootstrapAuth = useAppStore((state) => state.bootstrapAuth);
@@ -94,42 +95,44 @@ const App = () => {
                 path="/admin"
                 element={
                   <ProtectedRoute roles={['manager', 'admin']}>
-                    <AdminDashboard />
+                    <AdminLayout />
                   </ProtectedRoute>
                 }
-              />
-              <Route
-                path="/admin/orders"
-                element={
-                  <ProtectedRoute roles={['manager', 'admin']}>
-                    <AdminOrders />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/analytics"
-                element={
-                  <ProtectedRoute roles={['manager', 'admin']}>
-                    <Analytics />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/people"
-                element={
-                  <ProtectedRoute roles={['admin']}>
-                    <People />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/pending-uploads"
-                element={
-                  <ProtectedRoute roles={['admin']}>
-                    <PendingUploads />
-                  </ProtectedRoute>
-                }
-              />
+              >
+                <Route index element={<AdminDashboard />} />
+                <Route
+                  path="orders"
+                  element={
+                    <ProtectedRoute roles={['manager', 'admin']}>
+                      <AdminOrders />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="analytics"
+                  element={
+                    <ProtectedRoute roles={['manager', 'admin']}>
+                      <Analytics />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="people"
+                  element={
+                    <ProtectedRoute roles={['admin']}>
+                      <People />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="pending-uploads"
+                  element={
+                    <ProtectedRoute roles={['admin']}>
+                      <PendingUploads />
+                    </ProtectedRoute>
+                  }
+                />
+              </Route>
               <Route
                 path="/order-success"
                 element={
